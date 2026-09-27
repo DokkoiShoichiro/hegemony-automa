@@ -3,6 +3,8 @@
 const ACTIONS=['AW','BGS','STR','DEM','SA','PB'];
 const CHECKS=['AW','PB','BGS','STR'];
 const copy=x=>JSON.parse(JSON.stringify(x));
+// Each row array is stored from nearest to farthest from its marker. The UI
+// reverses Action rows because Action cards sit on the marker's left side.
 const initial=()=>({version:1,round:1,turn:1,phase:'start',index:0,actions:{0:['SA','STR','DEM'],1:['AW','BGS','PB']},policies:{0:['2','4','6'],1:['1','5']},aside:{actions:{},policies:{3:'initial',7:'initial'}},positions:{1:'B',2:'B',3:'A',4:'B',5:'B',6:'B',7:'B'},card:null,facts:'',log:[]});
 function rows(s,k){return Object.keys(s[k]).map(Number).filter(r=>s[k][r].length).sort((a,b)=>b-a);}
 function rank(s,k){return rows(s,k).flatMap(r=>s[k][r]);}
@@ -68,8 +70,8 @@ function reduce(state,e){const s=copy(state);let note=e.note||'';
   else if(selected!=='PRESSURE'){
    const destination=Math.max(0,locate(s,'actions',selected)-2);
    place(s,'actions',selected,destination);
-   if(e.first==='no')compress(s,'actions');
   }
+  if(e.first==='no'&&selected!=='PRESSURE')compress(s,'actions');
   s.phase='end';note=`${selected} 実行。${note}`;break;}
  case 'end':requireThat(s.phase==='end','終了処理ではありません');s.turn++;s.phase='start';s.card=null;s.index=0;break;
  case 'policy':{
