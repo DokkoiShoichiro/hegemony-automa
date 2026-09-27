@@ -19,7 +19,8 @@ function validate(s){
  requireThat(s?.version===1,'保存形式に対応していません');
  if(s.records!==undefined){requireThat(root.WCARecords,'盤面記録モジュールが必要です');root.WCARecords.validate(s.records);}
  requireThat(Number.isInteger(s.round)&&s.round>=1&&s.round<=5,'ラウンドが不正です');
- requireThat(['start','card','checks','action','end','player'].includes(s.phase),'手番状態が不正です');
+ requireThat(['start','card','checks','action','end','player','production','roundEnd'].includes(s.phase),'手番状態が不正です');
+ if(s.phase==='production')requireThat(s.production&&['produce','needs','imf','taxes'].includes(s.production.step)&&['A','B','C'].includes(s.production.laborPolicy),'生産フェイズの状態が不正です');
  for(const [k,all] of [['actions',ACTIONS],['policies',['1','2','3','4','5','6','7']]]){
   requireThat(s[k]&&s.aside?.[k],'優先順位がありません');
   requireThat(Object.entries(s[k]).every(([r,v])=>Number.isSafeInteger(Number(r))&&Array.isArray(v)),'段データが不正です');
@@ -93,9 +94,13 @@ function reduce(state,e){const s=copy(state);s.proposals??={};let note=e.note||'
  case 'playerExport':requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');s.records=root.WCARecords.applyCapitalistExport(s.records,e.resource,e.qty,e.revenue);note=`資本家が海外市場へ${e.qty}個を売却し${e.revenue}を獲得`;break;
  case 'playerLobby':requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');s.records=root.WCARecords.applyCapitalistLobby(s.records);note='資本家がロビー（30支払い・影響力3獲得）';break;
  case 'playerPressure':requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');s.records.common.values.capitalistVotesOutside=Math.max(0,Number(s.records.common.values.capitalistVotesOutside||0)-3);note='資本家が政治的圧力（投票駒3個を袋へ）';break;
- case 'playerEnd':requireThat(s.phase==='player','資本家の手番ではありません');s.turn++;s.phase='start';note='資本家の手番を終了';break;
+ case 'playerEnd':requireThat(s.phase==='player','資本家の手番ではありません');if(s.turn<5){s.turn++;s.phase='start';note='資本家の手番を終了';}else{s.phase='production';s.production={step:'produce',laborPolicy:s.positions[2]};note='第5手番を終了し、生産フェイズへ';}break;
+ case 'productionProduce':{requireThat(s.phase==='production'&&s.production.step==='produce'&&s.records,'生産ステップではありません');let demo='';if(s.aside.actions.DEM==='demonstration'&&s.records.common.tokens?.demonstration){const result=root.WCARecords.resolveDemonstration(s.records);s.records=result.records;place(s,'actions','DEM',0);demo=`、デモ解決${Object.values(result.losses).reduce((a,b)=>a+b,0)}VP減少`;}const result=root.WCARecords.applyProduction(s.records);s.records=result.records;s.production.step='needs';note=`生産・賃金を反映${demo}`;break;}
+ case 'productionNeeds':{requireThat(s.phase==='production'&&s.production.step==='needs'&&s.records,'需要充足ステップではありません');const result=root.WCARecords.applyFoodNeeds(s.records,e.plan||{},s.positions[6]);s.records=result.records;s.production.step='imf';note=`労働者の食料需要を充足（支払${result.total}）`;break;}
+ case 'productionImf':{requireThat(s.phase==='production'&&s.production.step==='imf'&&s.records,'IMF確認ステップではありません');const result=root.WCARecords.applyImf(s.records,s.positions[1],e.manual===true);s.records=result.records;s.production.step='taxes';note=result.mode==='safe'?'IMF介入なし':result.mode==='repaid'?`国家が貸付金${result.preview.repay}枚を返済`:'IMF介入を手動処理済み';break;}
+ case 'productionTaxes':{requireThat(s.phase==='production'&&s.production.step==='taxes'&&s.records,'納税ステップではありません');const result=root.WCARecords.applyTaxes(s.records,s.positions,s.production.laborPolicy);s.records=result.records;s.phase='roundEnd';note=`納税（労働者${result.preview.working}・資本家${result.preview.capitalist}）`;break;}
  case 'policy':{
-  requireThat(['start','card','end','player'].includes(s.phase),'チェック・行動選択中は政策を変更できません');
+  requireThat(['start','card','end','player','production','roundEnd'].includes(s.phase),'チェック・行動選択中は政策を変更できません');
   const id=e.id;requireThat(/^[1-7]$/.test(id)&&['A','B','C'].includes(e.position),'政策入力が不正です');
  requireThat(['pending','failed','passed','position'].includes(e.result),'投票結果が不正です');const proposal=s.proposals[id];
  if(e.result==='pending'){requireThat(!proposal,'この政策には既に法案があります');requireThat(Math.abs(e.position.charCodeAt(0)-s.positions[id].charCodeAt(0))===1,'法案は現在位置の隣を指定してください');s.proposals[id]={proposer:['Working','Capitalist'].includes(e.proposer)?e.proposer:'other',from:s.positions[id],target:e.position,round:s.round,turn:s.turn};}
@@ -113,7 +118,7 @@ function reduce(state,e){const s=copy(state);s.proposals??={};let note=e.note||'
  case 'demReturn':requireThat(['start','card','end'].includes(s.phase),'チェック中は変更できません');requireThat(s.aside.actions.DEM==='demonstration','DEMは除外されていません');if(s.records){s.records.common.tokens??={demonstration:false};s.records.common.tokens.demonstration=false;}place(s,'actions','DEM',0);break;
  case 'strikeAside':requireThat(['start','card','end'].includes(s.phase),'チェック中は変更できません');aside(s,'actions','STR','strikeTokens');break;
  case 'round':
-  requireThat(s.phase==='start'&&s.round<5,'手番開始時のみ次ラウンドへ進めます');requireThat(!Object.keys(s.proposals).length,'投票待ちの法案を解決してください');requireThat(e.confirmed===true,'全政策の現在位置を確認してください');s.round++;
+  requireThat(['start','roundEnd'].includes(s.phase)&&s.round<5,'ラウンド終了後のみ次ラウンドへ進めます');requireThat(!Object.keys(s.proposals).length,'投票待ちの法案を解決してください');requireThat(e.confirmed===true,'全政策の現在位置を確認してください');s.round++;s.turn=1;s.phase='start';delete s.production;
   if(s.aside.actions.STR==='strikeTokens')place(s,'actions','STR',0);
   for(let i=1;i<=7;i++){const id=String(i);if(s.round===5&&i===7){aside(s,'policies',id,'finalRound');continue;}if(!(id in s.aside.policies))continue;if(String(s.aside.policies[id]).startsWith('bill:')&&s.records){const owner=String(s.aside.policies[id]).slice(5);if(['Working','Capitalist'].includes(owner))s.records.personal[owner].values.billMarkers=Math.min(3,Number(s.records.personal[owner].values.billMarkers||0)+1);}
    const desired=i===6?'C':i===7?'B':'A',d=Math.abs(s.positions[id].charCodeAt(0)-desired.charCodeAt(0));if(d)place(s,'policies',id,d-1);
