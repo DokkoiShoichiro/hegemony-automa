@@ -65,6 +65,12 @@ function reduce(state,e){const s=copy(state);let note=e.note||'';
   const selected=e.first==='yes'?top[0]:e.second==='yes'?top[1]:'PRESSURE';
   requireThat(selected,'実行できるカードがありません');
   if(selected==='PB')requireThat(e.policyReviewed===true,'政策の提議可否・最終ラウンド制限を確認してください');
+  if(s.records){requireThat(root.WCARecords&&e.plan?.action===selected,'盤面へ反映する実行計画が不正です');if(selected==='PB')for(const p of e.plan.proposals||[])if(p.immediate)requireThat(['passed','failed'].includes(p.result),'即時投票の結果を入力してください');s.records=root.WCARecords.applyAction(s.records,e.plan);}
+  if(selected==='PB'&&e.plan)for(const p of e.plan.proposals||[]){
+   if(!p.immediate){aside(s,'policies',p.id,'bill:Working');continue;}
+   if(p.result==='failed')continue;
+   s.positions[p.id]=p.target;const desired=p.id==='6'?'C':p.id==='7'?'B':'A',distance=Math.abs(p.target.charCodeAt(0)-desired.charCodeAt(0));if(!distance)aside(s,'policies',p.id,'desired');else place(s,'policies',p.id,distance-1);
+  }
   if(selected==='DEM')aside(s,'actions','DEM','demonstration');
   else if(selected==='STR'&&e.strExhausted)aside(s,'actions','STR','strikeTokens');
   else if(selected!=='PRESSURE'){
@@ -77,9 +83,10 @@ function reduce(state,e){const s=copy(state);let note=e.note||'';
  case 'policy':{
   requireThat(['start','card','end'].includes(s.phase),'チェック・行動選択中は政策を変更できません');
   const id=e.id;requireThat(/^[1-7]$/.test(id)&&['A','B','C'].includes(e.position),'政策入力が不正です');
-  requireThat(['pending','failed','passed','position'].includes(e.result),'投票結果が不正です');s.positions[id]=e.position;
+ requireThat(['pending','failed','passed','position'].includes(e.result),'投票結果が不正です');s.positions[id]=e.position;
+  const ownPending=s.aside.policies[id]==='bill:Working';if(ownPending&&['failed','passed'].includes(e.result)&&s.records){s.records.personal.Working.values.billMarkers=Math.min(3,s.records.personal.Working.values.billMarkers+1);if(e.result==='failed')s.aside.policies[id]='bill:resolved';}
   if(s.round===5&&id==='7'){aside(s,'policies',id,'finalRound');break;}
-  if(e.result==='pending')aside(s,'policies',id,'bill');
+  if(e.result==='pending')aside(s,'policies',id,e.proposer==='Working'?'bill:Working':'bill:other');
   if(e.result==='passed'){
    const desired=id==='6'?'C':id==='7'?'B':'A';const distance=Math.abs(e.position.charCodeAt(0)-desired.charCodeAt(0));
    if(!distance)aside(s,'policies',id,'desired');else place(s,'policies',id,distance-1);
@@ -89,7 +96,7 @@ function reduce(state,e){const s=copy(state);let note=e.note||'';
  case 'round':
   requireThat(s.phase==='start'&&s.round<5,'手番開始時のみ次ラウンドへ進めます');requireThat(e.confirmed===true,'全政策の現在位置を確認してください');s.round++;
   if(s.aside.actions.STR==='strikeTokens')place(s,'actions','STR',0);
-  for(let i=1;i<=7;i++){const id=String(i);if(s.round===5&&i===7){aside(s,'policies',id,'finalRound');continue;}if(!(id in s.aside.policies))continue;
+  for(let i=1;i<=7;i++){const id=String(i);if(s.round===5&&i===7){aside(s,'policies',id,'finalRound');continue;}if(!(id in s.aside.policies))continue;if(s.aside.policies[id]==='bill:Working'&&s.records)s.records.personal.Working.values.billMarkers=Math.min(3,s.records.personal.Working.values.billMarkers+1);
    const desired=i===6?'C':i===7?'B':'A',d=Math.abs(s.positions[id].charCodeAt(0)-desired.charCodeAt(0));if(d)place(s,'policies',id,d-1);
   }break;
  default:throw Error('不明な操作です');
