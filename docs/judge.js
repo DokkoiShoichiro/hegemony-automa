@@ -16,19 +16,20 @@ const add=(o,series,card,up,why)=>{if(up>0){o.movements.push({series,card,up});o
 const ask=(o,id,label,type='number',extra={})=>{if(!o.questions.some(q=>q.id===id))o.questions.push({id,label,type,...extra});o.status='needsInput';};
 const warn=(o,message)=>{o.warnings.push(message);if(o.status==='ready')o.status='needsReview';};
 const defs=()=>Object.fromEntries([...(root.WCA_COMPANIES||[]),...(root.WCA_EXTRA_COMPANIES||[])].map(d=>[d.id,d]));
-function immediateVote2P(s){
+function immediateVote2P(s,alreadySpent=0){
  const r=s.records,w=r?.personal?.Working?.values||{},opponent=r?.personal?.Capitalist?.values||{},outside=r?.common?.values||{};
  const values=[w.influence,opponent.influence,outside.workingVotesOutside,outside.capitalistVotesOutside];
  if(values.some(x=>x==null))return {possible:null,reason:'両階級の影響力と袋の外の投票駒が未確認'};
  const bonus=String(s.card?.number)==='30'?2:0,workingBag=25-Math.max(0,Number(outside.workingVotesOutside)-bonus),opponentBag=25-Number(outside.capitalistVotesOutside);
- const influenceOk=Number(w.influence)-1>Number(opponent.influence),votesOk=workingBag>=opponentBag;
- return {possible:influenceOk&&votesOk,reason:`支払い後の影響力 ${Number(w.influence)-1} 対 ${Number(opponent.influence)}、袋内投票駒 ${workingBag} 対 ${opponentBag}${bonus?'（カード#30の2個を反映）':''}`};
+ const after=Number(w.influence)-Number(alreadySpent)-1,influenceOk=after>Number(opponent.influence),votesOk=workingBag>=opponentBag;
+ return {possible:influenceOk&&votesOk,reason:`支払い後の影響力 ${after} 対 ${Number(opponent.influence)}、袋内投票駒 ${workingBag} 対 ${opponentBag}${bonus?'（カード#30の2個を反映）':''}`};
 }
 function inspectCard(s,o){const number=String(s.card?.number||''),c=SAMPLE_CARDS[number];if(c&&(c.order.join()!==s.card.order.join()||c.policies.join()!==s.card.policies.join()))warn(o,`カード#${s.card.number}の転記と入力内容が一致しません。`);if(s.index===0&&['14','29','30'].includes(number))warn(o,`カード#${number}のボーナスが最初のチェックへ与える影響は確認待ちです。`);if(s.index===0&&!c&&s.card?.bonus?.trim()&&!/^(なし|無し|none|-|－)$/i.test(s.card.bonus.trim()))warn(o,'入力されたボーナスの判定への影響は未対応です。');}
 function policyCheck(s,a){const o=fresh(),r=s.records;let markers=r?.personal?.Working?.values?.billMarkers;if(markers==null&&a.billMarkers===undefined)ask(o,'billMarkers','利用可能な政策マーカー','number',{min:0,max:3});else markers=Number(markers??a.billMarkers);const eligible={};for(const id of s.card.policies){eligible[id]=!(id in s.aside.policies)&&markers>0;if(s.round===5&&id==='7')eligible[id]=false;if(s.round===5&&id==='6'){const iv=immediateVote2P(s);if(iv.possible===null&&a.immediateVote===undefined)ask(o,'immediateVote','政策6で即時投票を行える','boolean');else eligible[id]=eligible[id]&&(iv.possible??a.immediateVote);o.reasons.push(`政策6の即時投票：${iv.reason}`);}}if(o.questions.length){inspectCard(s,o);return o;}let any=false;for(const id of s.card.policies){if(!eligible[id]){o.reasons.push(`政策${id}：提議不可または優先カードが脇`);continue;}any=true;const distance=Math.abs(s.positions[id].charCodeAt(0)-DESIRED[id].charCodeAt(0));let up=distance===1?1:distance===2?2:0;if(id==='2')up++;if(up){add(o,'actions','PB',up,`政策${id} ${s.positions[id]}、希望${DESIRED[id]}`);add(o,'policies',id,up,'PBと同じ段数');}else o.reasons.push(`政策${id}：希望位置のため移動なし`);}if(!any)add(o,'actions','SA',1,'2政策とも提議できない');inspectCard(s,o);return o;}
 function wage(def,c,s){return def?.wages&&s.records.participants?.[def.class]!=='human'?({A:'L3',B:'L2',C:'L1'})[s.positions[2]]:c.wage;}
 function strikeCheck(s){const o=fresh(),r=s.records,map=defs();let eligible=0;const unknown=[];for(const [id,c] of Object.entries(r.companies||{})){if(c.status!=='built')continue;const d=map[id];if(!d||!c.slots.some(x=>x.owner==='Working'))continue;const w=wage(d,c,s);if(c.slots.some(x=>x.owner==='unknown')||w==='unknown'){unknown.push(d.name_jp);continue;}const stateAllowed=d.class!=='State'||r.participants.State==='human';if(stateAllowed&&!c.strike&&!c.slots.some(x=>x.committed)&&w!=='L3')eligible++;}if(unknown.length)warn(o,`企業情報が未確認です：${[...new Set(unknown)].join('、')}`);const unions=Object.values(r.personal?.Working?.unions||{}).filter(Boolean).length,pos=s.positions[2];o.reasons.push(`労働市場${pos}、組合${unions}、ストライキ可能企業${eligible}`);if(pos==='B'&&unions>=2)add(o,'actions','STR',Math.floor(eligible/3),'可能企業3社ごと');if(pos==='C'){add(o,'actions','STR',Math.floor(eligible/2),'可能企業2社ごと');add(o,'policies','2',1,'労働市場がC');}inspectCard(s,o);return o;}
-function cheapest(sources,qty){let best=null;for(let i=0;i<sources.length;i++)for(let j=i;j<sources.length;j++){if(i===j){if(sources[i].stock<qty)continue;const cost=qty*sources[i].price,candidate={cost,from:[`${sources[i].name} ${qty}`],purchases:[{source:sources[i].source,key:sources[i].key,qty,cost}]};if(!best||cost<best.cost)best=candidate;continue;}for(let x=Math.min(qty,sources[i].stock);x>=0;x--){const y=qty-x;if(y<0||y>sources[j].stock)continue;const cost=x*sources[i].price+y*sources[j].price,candidate={cost,from:[`${sources[i].name} ${x}`,`${sources[j].name} ${y}`].filter(v=>!v.endsWith(' 0')),purchases:[{source:sources[i].source,key:sources[i].key,qty:x,cost:x*sources[i].price},{source:sources[j].source,key:sources[j].key,qty:y,cost:y*sources[j].price}].filter(v=>v.qty)};if(!best||cost<best.cost)best=candidate;}}return best;}
+function purchase(source,qty){return {source:source.source,key:source.key,qty,cost:qty*source.price,...(source.tariff?{stateTariff:qty*source.tariff}:{})};}
+function cheapest(sources,qty){let best=null;for(let i=0;i<sources.length;i++)for(let j=i;j<sources.length;j++){if(i===j){if(sources[i].stock<qty)continue;const cost=qty*sources[i].price,candidate={cost,from:[`${sources[i].name} ${qty}`],purchases:[purchase(sources[i],qty)]};if(!best||cost<best.cost)best=candidate;continue;}for(let x=Math.min(qty,sources[i].stock);x>=0;x--){const y=qty-x;if(y<0||y>sources[j].stock)continue;const cost=x*sources[i].price+y*sources[j].price,candidate={cost,from:[`${sources[i].name} ${x}`,`${sources[j].name} ${y}`].filter(v=>!v.endsWith(' 0')),purchases:[purchase(sources[i],x),purchase(sources[j],y)].filter(v=>v.qty)};if(!best||cost<best.cost)best=candidate;}}return best;}
 const employed=r=>Object.values(r.companies||{}).reduce((n,c)=>n+(c.status==='built'?c.slots.filter(x=>x.owner==='Working').length:0),0);
 function goodsCheck(s,a){const o=fresh(),r=s.records,w=r.personal?.Working?.values||{},cap=r.personal?.Capitalist?.values||{},items=[['health','健康','Health'],['education','教育','Education'],['luxury','贅沢品','Luxury']];for(const [id,label] of [['population','人口'],['cash','資金'],['health','所持する健康'],['education','所持する教育'],['luxury','所持する贅沢品']])if(w[id]==null)ask(o,id,label,'number',{min:0});if(r.participants.Middle!=='absent')warn(o,'中産階級の在庫と価格はまだ自動判定に対応していません。');if(o.questions.length){inspectCard(s,o);return o;}const population=Number(w.population??a.population),cash=Number(w.cash??a.cash);let bonus=0;if(String(s.card.number)==='13'&&s.index===0&&s.card.order[0]==='BGS'&&['B','C'].includes(s.positions[2])){bonus=employed(r);o.reasons.push(`カード#13：雇用中${bonus}人分を判定用収入として考慮`);}let possible=0;for(const [key,label,resource] of items){const held=Number(w[key]??a[key]),qty=held>=population?population:population-held,sources=[];if(resource!=='Luxury')sources.push({name:'国家',stock:Number(r.common.values?.[key]||0),price:({A:0,B:5,C:10})[s.positions[resource==='Health'?4:5]]});if(cap[key]!=null&&cap[`${key}Price`]!=null)sources.push({name:'資本家',stock:Number(cap[key]),price:Number(cap[`${key}Price`])});if(resource==='Luxury')sources.push({name:`海外市場（基本6＋関税${FOREIGN_TARIFF[s.positions[6]].luxury}）`,stock:Infinity,price:foreignMarketPrice('luxury',s.positions[6])});const plan=cheapest(sources,qty);if(!plan||plan.cost>cash+bonus){o.reasons.push(`${label}：必要${qty}、購入不可`);continue;}possible++;const effective=Math.max(0,plan.cost-bonus),unit=qty?effective/qty:Infinity,up=effective===0?3:unit<=6?2:1;add(o,'actions','BGS',up,`${label}${qty}個、${plan.from.join('＋')}、実質${effective}（単価${unit.toFixed(2)}）`);if(bonus>=plan.cost&&bonus>0)warn(o,'ボーナスで実質費用が0以下になる扱いは現物確認が必要です。');}if(!possible)add(o,'actions','SA',1,'3資源をどれも必要数購入できない');inspectCard(s,o);return o;}
 function pool(r){return Object.fromEntries(SKILLS.map(k=>[k,Number(r.common?.unemployed?.Working?.[k]||0)]));}
@@ -51,15 +52,14 @@ function policyAction(s){
   if(!distance)continue;
   if(s.round===5&&id==='7')continue;
   const target=String.fromCharCode(current.charCodeAt(0)+(desired>current?1:-1));
-  const iv=immediateVote2P(s);
-  if(s.round===5&&id==='6'){if(iv.possible===null)return actionResult('PB',null,`政策6の即時投票条件を判定できません：${iv.reason}`);if(!iv.possible)continue;}
-  if(iv.possible===null)warnings.push(`政策${id}の即時投票は未判定：${iv.reason}`);
-  candidates.push({id,current,target,immediate:iv.possible===true,immediateReason:iv.reason});
+  candidates.push({id,current,target});
  }
  if(!candidates.length)return actionResult('PB',false,'提議できる政策がありません。',[],['政策優先カード、法案マーカー、第5ラウンド制限を確認']);
- const count=String(s.card?.number)==='29'?Math.min(2,markers,candidates.length):1,chosen=candidates.slice(0,count);
+ const limit=String(s.card?.number)==='29'?2:1,chosen=[];let available=Number(markers),spent=0;
+ for(const candidate of candidates){if(chosen.length>=limit||available<1)break;const iv=immediateVote2P(s,spent);if(s.round===5&&candidate.id==='6'){if(iv.possible===null)return actionResult('PB',null,`政策6の即時投票条件を判定できません：${iv.reason}`);if(!iv.possible)continue;}if(iv.possible===null)warnings.push(`政策${candidate.id}の即時投票は未判定：${iv.reason}`);const selected={...candidate,immediate:iv.possible===true,immediateReason:iv.reason};chosen.push(selected);if(selected.immediate)spent++;else available--;}
+ if(!chosen.length)return actionResult('PB',false,'提議できる政策がありません。',[],['法案マーカーと即時投票条件を確認']);
  const targets=chosen.map(x=>`政策${x.id}：${x.current} → ${x.target}${x.immediate?'（即時投票）':''}`);
- if(String(s.card?.number)==='29'&&count<2)warnings.push('カード#29の2件目は提議可能な政策がありません。');
+ if(String(s.card?.number)==='29'&&chosen.length<2)warnings.push('カード#29の2件目は提議可能な政策または法案マーカーがありません。');
  if(String(s.card?.number)==='30')warnings.push('提議前に労働者の投票駒2個を袋へ追加します。');
  const plan={action:'PB',bonusVotes:String(s.card?.number)==='30'?2:0,proposals:chosen.map(x=>({id:x.id,from:x.current,target:x.target,immediate:x.immediate}))};
  return actionResult('PB',true,`${targets.join('、')}を提議します。`,targets,['政策優先順の上から選択',...chosen.filter(x=>x.immediate).map(x=>`即時投票：${x.immediateReason}`)],warnings,plan);
@@ -72,7 +72,7 @@ function goodsPlans(s){
   const held=Number(w[key]),qty=held===Number(population)?Number(population):Math.max(0,Number(population)-held),sources=[];
   if(!qty)continue;
   if(resource!=='Luxury')sources.push({name:'国家',source:'State',key,stock:Number(r.common.values?.[key]||0),price:({A:0,B:5,C:10})[s.positions[resource==='Health'?4:5]]});
-  if(resource==='Luxury')sources.push({name:'海外市場',source:'Foreign',key,stock:Infinity,price:foreignMarketPrice('luxury',s.positions[6])});
+  if(resource==='Luxury')sources.push({name:'海外市場',source:'Foreign',key,stock:Infinity,price:foreignMarketPrice('luxury',s.positions[6]),tariff:FOREIGN_TARIFF[s.positions[6]].luxury});
   if(cap[key]!=null&&cap[`${key}Price`]!=null)sources.push({name:'資本家',source:'Capitalist',key,stock:Number(cap[key]),price:Number(cap[`${key}Price`])});
   const plan=cheapest(sources,qty),bonusCash=String(s.card?.number)==='13'&&['B','C'].includes(s.positions[2])?employed(r):0;if(plan&&plan.cost<=Number(cash)+bonusCash)plans.push({key,label,qty,bonusCash,sources,...plan,unit:Math.max(0,plan.cost-bonusCash)/qty});
  }
@@ -91,7 +91,7 @@ function goodsAction(s){
  let p={...plans[0],from:[...plans[0].from],purchases:plans[0].purchases.map(x=>({...x}))};
  if(p.purchases.length===1){
   const used=p.purchases[0].source,remaining=Number(w.cash)+p.bonusCash-p.cost,extra=p.sources.find(x=>x.source!==used&&x.stock>=Number(w.population)&&x.price*Number(w.population)<=remaining);
-  if(extra){const qty=Number(w.population),cost=extra.price*qty;p={...p,qty:p.qty+qty,cost:p.cost+cost,from:[...p.from,`${extra.name} ${qty}`],purchases:[...p.purchases,{source:extra.source,key:p.key,qty,cost}]};}
+  if(extra){const qty=Number(w.population),cost=extra.price*qty;p={...p,qty:p.qty+qty,cost:p.cost+cost,from:[...p.from,`${extra.name} ${qty}`],purchases:[...p.purchases,purchase(extra,qty)]};}
  }
  const target=`${p.label}${p.qty}個：${p.from.join('＋')}、合計${p.cost}`;
  const plan={action:'BGS',resource:p.key,qty:p.qty,cost:p.cost,bonusCash:p.bonusCash||0,purchases:p.purchases};
@@ -129,7 +129,7 @@ function workerAction(s){
  return actionResult('AW',true,targets.join('。')||`失業者を${maxHire}人配置します。`,targets,[`失業者から最大${maxHire}人の配置を計算`],best.length>1?['同率候補がある場合はカードの優先基準を順に適用してください。']:[],{action:'AW',allocations:bestAlloc});
 }
 function demonstrationAction(s){
- const r=s.records,unemployed=Object.values(pool(r)).reduce((a,b)=>a+b,0),slots=Object.values(r.companies||{}).reduce((n,c)=>n+(c.status==='built'?c.slots.filter(x=>x.owner==='empty').length:0),0),ok=unemployed>slots+2;
+ const r=s.records,status=root.WCARecords?.demonstrationStatus?.(r),unemployed=status?.unemployed??Object.values(pool(r)).reduce((a,b)=>a+b,0),slots=status?.slots??Object.values(r.companies||{}).reduce((n,c)=>n+(c.status==='built'?c.slots.filter(x=>x.owner==='empty').length:0),0),ok=status?.eligible??unemployed>=slots+2;
  const participants=['Capitalist','Middle','State'].filter(x=>r.participants[x]!=='absent'),labels={Capitalist:'資本家階級',Middle:'中産階級',State:'国家'};
  return actionResult('DEM',ok,ok?`デモを行います。VP減少は${participants.map(x=>labels[x]).join(' → ')||'対象なし'}の順です。`:`失業者${unemployed}人、空きスロット${slots}個のため実行できません。`,participants.map(x=>labels[x]),[`条件：失業者${unemployed} > 空きスロット${slots}＋2`],ok?['VP減少は生産フェイズのデモ解決時に処理します。']:[],ok?{action:'DEM'}:null);
 }
