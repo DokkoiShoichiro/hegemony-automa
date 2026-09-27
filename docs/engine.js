@@ -5,7 +5,7 @@ const CHECKS=['AW','PB','BGS','STR'];
 const copy=x=>JSON.parse(JSON.stringify(x));
 // Each row array is stored from nearest to farthest from its marker. The UI
 // reverses Action rows because Action cards sit on the marker's left side.
-const initial=()=>({version:1,round:1,turn:1,phase:'start',index:0,actions:{0:['SA','STR','DEM'],1:['AW','BGS','PB']},policies:{0:['2','4','6'],1:['1','5']},aside:{actions:{},policies:{3:'initial',7:'initial'}},positions:{1:'B',2:'B',3:'A',4:'B',5:'B',6:'B',7:'B'},card:null,facts:'',log:[]});
+const initial=()=>({version:1,round:1,turn:1,phase:'start',index:0,actions:{0:['SA','STR','DEM'],1:['AW','BGS','PB']},policies:{0:['2','4','6'],1:['1','5']},aside:{actions:{},policies:{3:'initial',7:'initial'}},positions:{1:'B',2:'B',3:'A',4:'B',5:'B',6:'B',7:'B'},proposals:{},card:null,facts:'',log:[]});
 function rows(s,k){return Object.keys(s[k]).map(Number).filter(r=>s[k][r].length).sort((a,b)=>b-a);}
 function rank(s,k){return rows(s,k).flatMap(r=>s[k][r]);}
 function locate(s,k,id){return rows(s,k).find(r=>s[k][r].includes(id));}
@@ -28,11 +28,12 @@ function validate(s){
  }
  requireThat(typeof s.facts==='string'&&Array.isArray(s.log),'記録が不正です');
  requireThat(s.positions&&Object.values(s.positions).every(x=>['A','B','C'].includes(x)),'政策位置が不正です');
+ if(s.proposals!==undefined){requireThat(s.proposals&&typeof s.proposals==='object'&&!Array.isArray(s.proposals),'法案記録が不正です');for(const [id,p] of Object.entries(s.proposals)){requireThat(/^[1-7]$/.test(id)&&p&&['Working','other'].includes(p.proposer)&&['A','B','C'].includes(p.from)&&['A','B','C'].includes(p.target),'法案記録が不正です');}}
  requireThat(Number.isInteger(s.index)&&s.index>=0&&s.index<=4,'チェック位置が不正です');
  if(['checks','action','end'].includes(s.phase))requireThat(s.card&&s.card.order?.length===4&&new Set(s.card.order).size===4&&s.card.order.every(x=>CHECKS.includes(x)),'AIカードが不正です');
  return s;
 }
-function reduce(state,e){const s=copy(state);let note=e.note||'';
+function reduce(state,e){const s=copy(state);s.proposals??={};let note=e.note||'';
  switch(e.type){
  case 'setup':{
   requireThat(e.confirmed===true,'初期状態への置き換えを確認してください');
@@ -67,7 +68,7 @@ function reduce(state,e){const s=copy(state);let note=e.note||'';
   if(selected==='PB')requireThat(e.policyReviewed===true,'政策の提議可否・最終ラウンド制限を確認してください');
   if(s.records){requireThat(root.WCARecords&&e.plan?.action===selected,'盤面へ反映する実行計画が不正です');if(selected==='PB')for(const p of e.plan.proposals||[])if(p.immediate)requireThat(['passed','failed'].includes(p.result),'即時投票の結果を入力してください');s.records=root.WCARecords.applyAction(s.records,e.plan);}
   if(selected==='PB'&&e.plan)for(const p of e.plan.proposals||[]){
-   if(!p.immediate){aside(s,'policies',p.id,'bill:Working');continue;}
+   if(!p.immediate){aside(s,'policies',p.id,'bill:Working');s.proposals[p.id]={proposer:'Working',from:p.from,target:p.target,round:s.round,turn:s.turn};continue;}
    if(p.result==='failed')continue;
    s.positions[p.id]=p.target;const desired=p.id==='6'?'C':p.id==='7'?'B':'A',distance=Math.abs(p.target.charCodeAt(0)-desired.charCodeAt(0));if(!distance)aside(s,'policies',p.id,'desired');else place(s,'policies',p.id,distance-1);
   }
@@ -83,8 +84,13 @@ function reduce(state,e){const s=copy(state);let note=e.note||'';
  case 'policy':{
   requireThat(['start','card','end'].includes(s.phase),'チェック・行動選択中は政策を変更できません');
   const id=e.id;requireThat(/^[1-7]$/.test(id)&&['A','B','C'].includes(e.position),'政策入力が不正です');
- requireThat(['pending','failed','passed','position'].includes(e.result),'投票結果が不正です');s.positions[id]=e.position;
+ requireThat(['pending','failed','passed','position'].includes(e.result),'投票結果が不正です');const proposal=s.proposals[id];
+ if(e.result==='pending'){requireThat(!proposal,'この政策には既に法案があります');requireThat(Math.abs(e.position.charCodeAt(0)-s.positions[id].charCodeAt(0))===1,'法案は現在位置の隣を指定してください');s.proposals[id]={proposer:e.proposer==='Working'?'Working':'other',from:s.positions[id],target:e.position,round:s.round,turn:s.turn};}
+  if(e.result==='pending'&&e.proposer==='Working'&&s.records){requireThat(s.records.personal.Working.values.billMarkers>0,'法案マーカーが足りません');s.records.personal.Working.values.billMarkers--;}
+  if(e.result==='position')s.positions[id]=e.position;
+  if(e.result==='passed')s.positions[id]=proposal?.target||e.position;
   const ownPending=s.aside.policies[id]==='bill:Working';if(ownPending&&['failed','passed'].includes(e.result)&&s.records){s.records.personal.Working.values.billMarkers=Math.min(3,s.records.personal.Working.values.billMarkers+1);if(e.result==='failed')s.aside.policies[id]='bill:resolved';}
+  if(['failed','passed'].includes(e.result))delete s.proposals[id];
   if(s.round===5&&id==='7'){aside(s,'policies',id,'finalRound');break;}
   if(e.result==='pending')aside(s,'policies',id,e.proposer==='Working'?'bill:Working':'bill:other');
   if(e.result==='passed'){
@@ -94,7 +100,7 @@ function reduce(state,e){const s=copy(state);let note=e.note||'';
  case 'demReturn':requireThat(['start','card','end'].includes(s.phase),'チェック中は変更できません');requireThat(s.aside.actions.DEM==='demonstration','DEMは除外されていません');place(s,'actions','DEM',0);break;
  case 'strikeAside':requireThat(['start','card','end'].includes(s.phase),'チェック中は変更できません');aside(s,'actions','STR','strikeTokens');break;
  case 'round':
-  requireThat(s.phase==='start'&&s.round<5,'手番開始時のみ次ラウンドへ進めます');requireThat(e.confirmed===true,'全政策の現在位置を確認してください');s.round++;
+  requireThat(s.phase==='start'&&s.round<5,'手番開始時のみ次ラウンドへ進めます');requireThat(!Object.keys(s.proposals).length,'投票待ちの法案を解決してください');requireThat(e.confirmed===true,'全政策の現在位置を確認してください');s.round++;
   if(s.aside.actions.STR==='strikeTokens')place(s,'actions','STR',0);
   for(let i=1;i<=7;i++){const id=String(i);if(s.round===5&&i===7){aside(s,'policies',id,'finalRound');continue;}if(!(id in s.aside.policies))continue;if(s.aside.policies[id]==='bill:Working'&&s.records)s.records.personal.Working.values.billMarkers=Math.min(3,s.records.personal.Working.values.billMarkers+1);
    const desired=i===6?'C':i===7?'B':'A',d=Math.abs(s.positions[id].charCodeAt(0)-desired.charCodeAt(0));if(d)place(s,'policies',id,d-1);
