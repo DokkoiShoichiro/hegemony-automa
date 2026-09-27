@@ -1,5 +1,5 @@
 'use strict';
-const E=WCA,$=id=>document.getElementById(id),KEY='wca-assistant-v1';
+const E=WCA,$=id=>document.getElementById(id),KEY='wca-assistant-v2';
 const names={AW:'労働者の割り当て',BGS:'商品・サービスの購入',STR:'ストライキ',DEM:'デモ',SA:'特殊アクション',PB:'法案の提議'};
 for (const id of Object.keys(names)) names[id] += ` (${id})`;
 const hints={AW:'入れ替え後の合法な配置案を確認。雇用する失業労働者、設立できる組合、失業人数と空きスロット数を調べます。異なる配置案を合算しないでください。',PB:'カード上の2政策について、現在位置・望みの位置・提議マーカー・除外状態を確認。政策2の追加移動の適用条件は現物参照。',BGS:'健康・教育・贅沢品ごとに必要量、所持量、販売元の在庫、合計費用、支払能力を確認。複数販売元とボーナスの単価計算は公式印刷10ページを参照。',STR:'労働市場Bなら組合数、Cなら対象企業数を確認。最低許容賃金で、ストライキ可能な企業だけを数えます。'};
