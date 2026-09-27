@@ -19,7 +19,7 @@ function validate(s){
  requireThat(s?.version===1,'保存形式に対応していません');
  if(s.records!==undefined){requireThat(root.WCARecords,'盤面記録モジュールが必要です');root.WCARecords.validate(s.records);}
  requireThat(Number.isInteger(s.round)&&s.round>=1&&s.round<=5,'ラウンドが不正です');
- requireThat(['start','card','checks','action','end'].includes(s.phase),'手番状態が不正です');
+ requireThat(['start','card','checks','action','end','player'].includes(s.phase),'手番状態が不正です');
  for(const [k,all] of [['actions',ACTIONS],['policies',['1','2','3','4','5','6','7']]]){
   requireThat(s[k]&&s.aside?.[k],'優先順位がありません');
   requireThat(Object.entries(s[k]).every(([r,v])=>Number.isSafeInteger(Number(r))&&Array.isArray(v)),'段データが不正です');
@@ -28,7 +28,7 @@ function validate(s){
  }
  requireThat(typeof s.facts==='string'&&Array.isArray(s.log),'記録が不正です');
  requireThat(s.positions&&Object.values(s.positions).every(x=>['A','B','C'].includes(x)),'政策位置が不正です');
- if(s.proposals!==undefined){requireThat(s.proposals&&typeof s.proposals==='object'&&!Array.isArray(s.proposals),'法案記録が不正です');for(const [id,p] of Object.entries(s.proposals)){requireThat(/^[1-7]$/.test(id)&&p&&['Working','other'].includes(p.proposer)&&['A','B','C'].includes(p.from)&&['A','B','C'].includes(p.target),'法案記録が不正です');}}
+ if(s.proposals!==undefined){requireThat(s.proposals&&typeof s.proposals==='object'&&!Array.isArray(s.proposals),'法案記録が不正です');for(const [id,p] of Object.entries(s.proposals)){requireThat(/^[1-7]$/.test(id)&&p&&['Working','Capitalist','other'].includes(p.proposer)&&['A','B','C'].includes(p.from)&&['A','B','C'].includes(p.target),'法案記録が不正です');}}
  requireThat(Number.isInteger(s.index)&&s.index>=0&&s.index<=4,'チェック位置が不正です');
  if(['checks','action','end'].includes(s.phase))requireThat(s.card&&s.card.order?.length===4&&new Set(s.card.order).size===4&&s.card.order.every(x=>CHECKS.includes(x)),'AIカードが不正です');
  return s;
@@ -69,7 +69,7 @@ function reduce(state,e){const s=copy(state);s.proposals??={};let note=e.note||'
   if(s.records){requireThat(root.WCARecords&&e.plan?.action===selected,'盤面へ反映する実行計画が不正です');if(selected==='PB')for(const p of e.plan.proposals||[])if(p.immediate)requireThat(['passed','failed'].includes(p.result),'即時投票の結果を入力してください');s.records=root.WCARecords.applyAction(s.records,e.plan);}
   if(selected==='PB'&&e.plan)for(const p of e.plan.proposals||[]){
    if(!p.immediate){aside(s,'policies',p.id,'bill:Working');s.proposals[p.id]={proposer:'Working',from:p.from,target:p.target,round:s.round,turn:s.turn};continue;}
-   if(p.result==='failed')continue;
+   if(p.result==='failed')continue;if(s.records){s.records.personal.Working.values.vp=Number(s.records.personal.Working.values.vp||0)+3;if(p.supporterCapitalist)s.records.personal.Capitalist.values.vp=Number(s.records.personal.Capitalist.values.vp||0)+1;}
    {const hadDemo=!!s.records?.common?.tokens?.demonstration;if(s.records)s.records=root.WCARecords.applyPolicyChange(s.records,p.id,s.positions[p.id],p.target,s.positions);s.positions[p.id]=p.target;if(hadDemo&&!s.records.common.tokens.demonstration&&s.aside.actions.DEM==='demonstration')place(s,'actions','DEM',0);}const desired=p.id==='6'?'C':p.id==='7'?'B':'A',distance=Math.abs(p.target.charCodeAt(0)-desired.charCodeAt(0));if(!distance)aside(s,'policies',p.id,'desired');else place(s,'policies',p.id,distance-1);
   }
   if(selected==='DEM')aside(s,'actions','DEM','demonstration');
@@ -81,18 +81,25 @@ function reduce(state,e){const s=copy(state);s.proposals??={};let note=e.note||'
   if(e.first==='no'&&selected!=='PRESSURE')compress(s,'actions');
   s.phase='end';note=`${selected} 実行。${note}`;break;}
  case 'freeAction':requireThat(s.phase==='end'&&s.records,'終了時の無償行動ではありません');s.records=root.WCARecords.applyFreeAction(s.records,e.resource,e.upgrade);note=`${e.resource}を使用して繁栄度を上昇`;break;
- case 'end':requireThat(s.phase==='end','終了処理ではありません');requireThat(!s.records||!root.WCARecords.nextFreeResource(s.records),'終了時の資源使用を完了してください');s.turn++;s.phase='start';s.card=null;s.index=0;break;
+ case 'end':requireThat(s.phase==='end','終了処理ではありません');requireThat(!s.records||!root.WCARecords.nextFreeResource(s.records),'終了時の資源使用を完了してください');s.phase='player';s.card=null;s.index=0;note='労働者オートマの手番を終了';break;
+ case 'playerPolicy':{
+  requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');const id=e.id,current=s.positions[id],target=e.position,cap=s.records.personal.Capitalist.values;requireThat(/^[1-7]$/.test(id)&&!s.proposals[id]&&!String(s.aside.policies[id]||'').startsWith('bill:'),'この政策には提議できません');requireThat(['A','B','C'].includes(target)&&Math.abs(target.charCodeAt(0)-current.charCodeAt(0))===1,'提議先は現在位置の隣です');
+  if(e.immediate){requireThat(cap.influence>0,'即時投票に必要な影響力がありません');requireThat(['passed','failed'].includes(e.result),'即時投票の結果を選んでください');cap.influence--;if(e.result==='passed'){cap.vp=Number(cap.vp||0)+3;if(e.supporterWorking)s.records.personal.Working.values.vp=Number(s.records.personal.Working.values.vp||0)+1;const hadDemo=!!s.records.common?.tokens?.demonstration;s.records=root.WCARecords.applyPolicyChange(s.records,id,current,target,s.positions);s.positions[id]=target;if(hadDemo&&!s.records.common.tokens.demonstration&&s.aside.actions.DEM==='demonstration')place(s,'actions','DEM',0);const desired=id==='6'?'C':id==='7'?'B':'A',distance=Math.abs(target.charCodeAt(0)-desired.charCodeAt(0));if(!distance)aside(s,'policies',id,'desired');else place(s,'policies',id,distance-1);}note=`資本家が政策${id}を${target}へ提議・即時投票${e.result==='passed'?'可決':'否決'}`;
+  }else{requireThat(cap.billMarkers>0,'法案マーカーがありません');cap.billMarkers--;s.proposals[id]={proposer:'Capitalist',from:current,target,round:s.round,turn:s.turn};aside(s,'policies',id,'bill:Capitalist');note=`資本家が政策${id}を${target}へ提議`;}
+  break;}
+ case 'playerPurchase':{requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');const result=root.WCARecords.applyCapitalistPurchase(s.records,e.plan,s.positions['6']);s.records=result.records;note=`資本家が${result.food?`食料${result.food}`:''}${result.food&&result.luxury?'・':''}${result.luxury?`ぜいたく品${result.luxury}`:''}を購入（本体${result.base}・関税${result.tariff}・合計${result.total}）`;break;}
+ case 'playerEnd':requireThat(s.phase==='player','資本家の手番ではありません');s.turn++;s.phase='start';note='資本家の手番を終了';break;
  case 'policy':{
-  requireThat(['start','card','end'].includes(s.phase),'チェック・行動選択中は政策を変更できません');
+  requireThat(['start','card','end','player'].includes(s.phase),'チェック・行動選択中は政策を変更できません');
   const id=e.id;requireThat(/^[1-7]$/.test(id)&&['A','B','C'].includes(e.position),'政策入力が不正です');
  requireThat(['pending','failed','passed','position'].includes(e.result),'投票結果が不正です');const proposal=s.proposals[id];
- if(e.result==='pending'){requireThat(!proposal,'この政策には既に法案があります');requireThat(Math.abs(e.position.charCodeAt(0)-s.positions[id].charCodeAt(0))===1,'法案は現在位置の隣を指定してください');s.proposals[id]={proposer:e.proposer==='Working'?'Working':'other',from:s.positions[id],target:e.position,round:s.round,turn:s.turn};}
+ if(e.result==='pending'){requireThat(!proposal,'この政策には既に法案があります');requireThat(Math.abs(e.position.charCodeAt(0)-s.positions[id].charCodeAt(0))===1,'法案は現在位置の隣を指定してください');s.proposals[id]={proposer:['Working','Capitalist'].includes(e.proposer)?e.proposer:'other',from:s.positions[id],target:e.position,round:s.round,turn:s.turn};}
   if(e.result==='pending'&&e.proposer==='Working'&&s.records){requireThat(s.records.personal.Working.values.billMarkers>0,'法案マーカーが足りません');s.records.personal.Working.values.billMarkers--;}
   if(['position','passed'].includes(e.result)){const target=e.result==='passed'?(proposal?.target||e.position):e.position,hadDemo=!!s.records?.common?.tokens?.demonstration;if(s.records)s.records=root.WCARecords.applyPolicyChange(s.records,id,s.positions[id],target,s.positions);s.positions[id]=target;if(hadDemo&&!s.records.common.tokens.demonstration&&s.aside.actions.DEM==='demonstration')place(s,'actions','DEM',0);}
-  const ownPending=s.aside.policies[id]==='bill:Working';if(ownPending&&['failed','passed'].includes(e.result)&&s.records){s.records.personal.Working.values.billMarkers=Math.min(3,s.records.personal.Working.values.billMarkers+1);if(e.result==='failed')s.aside.policies[id]='bill:resolved';}
+  const owner=proposal?.proposer,ownPending=['Working','Capitalist'].includes(owner);if(ownPending&&['failed','passed'].includes(e.result)&&s.records){const values=s.records.personal[owner].values;values.billMarkers=Math.min(3,Number(values.billMarkers||0)+1);if(e.result==='passed'){values.vp=Number(values.vp||0)+3;if(e.supporter){const supporter=owner==='Working'?'Capitalist':'Working';s.records.personal[supporter].values.vp=Number(s.records.personal[supporter].values.vp||0)+1;}}if(e.result==='failed')s.aside.policies[id]='bill:resolved';}
   if(['failed','passed'].includes(e.result))delete s.proposals[id];
   if(s.round===5&&id==='7'){aside(s,'policies',id,'finalRound');break;}
-  if(e.result==='pending')aside(s,'policies',id,e.proposer==='Working'?'bill:Working':'bill:other');
+  if(e.result==='pending')aside(s,'policies',id,['Working','Capitalist'].includes(e.proposer)?`bill:${e.proposer}`:'bill:other');
   if(e.result==='passed'){
    const desired=id==='6'?'C':id==='7'?'B':'A';const distance=Math.abs(e.position.charCodeAt(0)-desired.charCodeAt(0));
    if(!distance)aside(s,'policies',id,'desired');else place(s,'policies',id,distance-1);
@@ -103,7 +110,7 @@ function reduce(state,e){const s=copy(state);s.proposals??={};let note=e.note||'
  case 'round':
   requireThat(s.phase==='start'&&s.round<5,'手番開始時のみ次ラウンドへ進めます');requireThat(!Object.keys(s.proposals).length,'投票待ちの法案を解決してください');requireThat(e.confirmed===true,'全政策の現在位置を確認してください');s.round++;
   if(s.aside.actions.STR==='strikeTokens')place(s,'actions','STR',0);
-  for(let i=1;i<=7;i++){const id=String(i);if(s.round===5&&i===7){aside(s,'policies',id,'finalRound');continue;}if(!(id in s.aside.policies))continue;if(s.aside.policies[id]==='bill:Working'&&s.records)s.records.personal.Working.values.billMarkers=Math.min(3,s.records.personal.Working.values.billMarkers+1);
+  for(let i=1;i<=7;i++){const id=String(i);if(s.round===5&&i===7){aside(s,'policies',id,'finalRound');continue;}if(!(id in s.aside.policies))continue;if(String(s.aside.policies[id]).startsWith('bill:')&&s.records){const owner=String(s.aside.policies[id]).slice(5);if(['Working','Capitalist'].includes(owner))s.records.personal[owner].values.billMarkers=Math.min(3,Number(s.records.personal[owner].values.billMarkers||0)+1);}
    const desired=i===6?'C':i===7?'B':'A',d=Math.abs(s.positions[id].charCodeAt(0)-desired.charCodeAt(0));if(d)place(s,'policies',id,d-1);
   }break;
  default:throw Error('不明な操作です');
