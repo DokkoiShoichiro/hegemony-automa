@@ -57,9 +57,12 @@ function renderEvents(){
  $('strikeAside').onclick=()=>act({type:'strikeAside',note:'ストライキトークン枯渇',source:'公式 p.10'});
  $('round').onclick=()=>act({type:'round',confirmed:$('roundConfirmed').checked,note:'次ラウンドの準備',source:'公式 p.6–7,9–10'});
 }
+const newGame=document.createElement('button');newGame.id='newGame';newGame.className='quiet';newGame.textContent='新しいゲーム';$('undo').before(newGame);
+newGame.onclick=()=>WCARecords.openSetupDialog();
 $('undo').onclick=()=>{if(!history.length||blocked||!WCARecords.canLeave())return;state=history.pop();render();persist();};
 $('saveFacts').onclick=()=>act({type:'facts',value:$('facts').value,note:'盤面メモを更新'});
 $('export').onclick=()=>{const raw=blocked?localStorage.getItem(KEY):JSON.stringify({state,history},null,2);const url=URL.createObjectURL(new Blob([raw||''],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='wca-save.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 $('import').onchange=async ev=>{const file=ev.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());E.validate(data.state);if(!Array.isArray(data.history))throw Error('履歴がありません');data.history.forEach(E.validate);if(!confirm('現在の状態を読み込んだ保存データに置き換えますか？'))return;state=data.state;history=data.history;blocked=false;$('error').hidden=true;render();persist();}catch(e){showError('読み込み失敗。現在の状態は変更していません。'+e.message);}finally{ev.target.value='';}};
 render();if(!blocked)persist();
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_wca_turn',description:'現在のWCA手番と優先順位、確認状態を読み取る',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||typeof input!=='object'||Object.keys(input).length)throw Error('引数は空のオブジェクトです');return E.copy({round:state.round,phase:state.phase,index:state.index,actions:state.actions,policies:state.policies,aside:state.aside});}})).catch(()=>{});}catch{}}
+
