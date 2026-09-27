@@ -43,9 +43,9 @@ function reduce(state,e){const s=copy(state);s.proposals??={};let note=e.note||'
  }
  case 'record':
   requireThat(root.WCARecords,'盤面記録モジュールが必要です');
-  s.records=root.WCARecords.update(s.records,e);break;
+  {const hadDemo=!!s.records?.common?.tokens?.demonstration;s.records=root.WCARecords.update(s.records,e);if(hadDemo&&e.section==='establish'&&e.value?.slots?.some(x=>x.owner==='Working')&&!root.WCARecords.demonstrationStatus(s.records).eligible){s.records.common.tokens.demonstration=false;if(s.aside.actions.DEM==='demonstration')place(s,'actions','DEM',0);note+='（条件解消によりデモトークンを除去）';}}break;
  case 'facts':s.facts=e.value;break;
- case 'start':requireThat(s.phase==='start','手番開始ではありません');s.phase='card';break;
+ case 'start':requireThat(s.phase==='start','手番開始ではありません');if(s.records)s.records=root.WCARecords.applyStart(s.records);s.phase='card';break;
  case 'card':
   requireThat(s.phase==='card','カード入力ではありません');
   requireThat(e.order.length===4&&new Set(e.order).size===4&&e.order.every(x=>CHECKS.includes(x)),'4種類を一度ずつ指定してください');
@@ -70,7 +70,7 @@ function reduce(state,e){const s=copy(state);s.proposals??={};let note=e.note||'
   if(selected==='PB'&&e.plan)for(const p of e.plan.proposals||[]){
    if(!p.immediate){aside(s,'policies',p.id,'bill:Working');s.proposals[p.id]={proposer:'Working',from:p.from,target:p.target,round:s.round,turn:s.turn};continue;}
    if(p.result==='failed')continue;
-   s.positions[p.id]=p.target;const desired=p.id==='6'?'C':p.id==='7'?'B':'A',distance=Math.abs(p.target.charCodeAt(0)-desired.charCodeAt(0));if(!distance)aside(s,'policies',p.id,'desired');else place(s,'policies',p.id,distance-1);
+   {const hadDemo=!!s.records?.common?.tokens?.demonstration;if(s.records)s.records=root.WCARecords.applyPolicyChange(s.records,p.id,s.positions[p.id],p.target,s.positions);s.positions[p.id]=p.target;if(hadDemo&&!s.records.common.tokens.demonstration&&s.aside.actions.DEM==='demonstration')place(s,'actions','DEM',0);}const desired=p.id==='6'?'C':p.id==='7'?'B':'A',distance=Math.abs(p.target.charCodeAt(0)-desired.charCodeAt(0));if(!distance)aside(s,'policies',p.id,'desired');else place(s,'policies',p.id,distance-1);
   }
   if(selected==='DEM')aside(s,'actions','DEM','demonstration');
   else if(selected==='STR'&&e.strExhausted)aside(s,'actions','STR','strikeTokens');
@@ -80,15 +80,15 @@ function reduce(state,e){const s=copy(state);s.proposals??={};let note=e.note||'
   }
   if(e.first==='no'&&selected!=='PRESSURE')compress(s,'actions');
   s.phase='end';note=`${selected} 実行。${note}`;break;}
- case 'end':requireThat(s.phase==='end','終了処理ではありません');s.turn++;s.phase='start';s.card=null;s.index=0;break;
+ case 'freeAction':requireThat(s.phase==='end'&&s.records,'終了時の無償行動ではありません');s.records=root.WCARecords.applyFreeAction(s.records,e.resource,e.upgrade);note=`${e.resource}を使用して繁栄度を上昇`;break;
+ case 'end':requireThat(s.phase==='end','終了処理ではありません');requireThat(!s.records||!root.WCARecords.nextFreeResource(s.records),'終了時の資源使用を完了してください');s.turn++;s.phase='start';s.card=null;s.index=0;break;
  case 'policy':{
   requireThat(['start','card','end'].includes(s.phase),'チェック・行動選択中は政策を変更できません');
   const id=e.id;requireThat(/^[1-7]$/.test(id)&&['A','B','C'].includes(e.position),'政策入力が不正です');
  requireThat(['pending','failed','passed','position'].includes(e.result),'投票結果が不正です');const proposal=s.proposals[id];
  if(e.result==='pending'){requireThat(!proposal,'この政策には既に法案があります');requireThat(Math.abs(e.position.charCodeAt(0)-s.positions[id].charCodeAt(0))===1,'法案は現在位置の隣を指定してください');s.proposals[id]={proposer:e.proposer==='Working'?'Working':'other',from:s.positions[id],target:e.position,round:s.round,turn:s.turn};}
   if(e.result==='pending'&&e.proposer==='Working'&&s.records){requireThat(s.records.personal.Working.values.billMarkers>0,'法案マーカーが足りません');s.records.personal.Working.values.billMarkers--;}
-  if(e.result==='position')s.positions[id]=e.position;
-  if(e.result==='passed')s.positions[id]=proposal?.target||e.position;
+  if(['position','passed'].includes(e.result)){const target=e.result==='passed'?(proposal?.target||e.position):e.position,hadDemo=!!s.records?.common?.tokens?.demonstration;if(s.records)s.records=root.WCARecords.applyPolicyChange(s.records,id,s.positions[id],target,s.positions);s.positions[id]=target;if(hadDemo&&!s.records.common.tokens.demonstration&&s.aside.actions.DEM==='demonstration')place(s,'actions','DEM',0);}
   const ownPending=s.aside.policies[id]==='bill:Working';if(ownPending&&['failed','passed'].includes(e.result)&&s.records){s.records.personal.Working.values.billMarkers=Math.min(3,s.records.personal.Working.values.billMarkers+1);if(e.result==='failed')s.aside.policies[id]='bill:resolved';}
   if(['failed','passed'].includes(e.result))delete s.proposals[id];
   if(s.round===5&&id==='7'){aside(s,'policies',id,'finalRound');break;}
@@ -97,7 +97,8 @@ function reduce(state,e){const s=copy(state);s.proposals??={};let note=e.note||'
    const desired=id==='6'?'C':id==='7'?'B':'A';const distance=Math.abs(e.position.charCodeAt(0)-desired.charCodeAt(0));
    if(!distance)aside(s,'policies',id,'desired');else place(s,'policies',id,distance-1);
   }break;}
- case 'demReturn':requireThat(['start','card','end'].includes(s.phase),'チェック中は変更できません');requireThat(s.aside.actions.DEM==='demonstration','DEMは除外されていません');place(s,'actions','DEM',0);break;
+ case 'demResolve':{requireThat(['start','card','end'].includes(s.phase),'チェック中は変更できません');requireThat(s.aside.actions.DEM==='demonstration'&&s.records?.common?.tokens?.demonstration,'解決するデモがありません');const result=root.WCARecords.resolveDemonstration(s.records);s.records=result.records;place(s,'actions','DEM',0);note=`生産フェイズのデモ解決（${Object.entries(result.losses).map(([k,v])=>`${k} -${v}VP`).join('、')||'VP減少なし'}${result.unapplied?`、上限により未適用${result.unapplied}VP`:''}）`;break;}
+ case 'demReturn':requireThat(['start','card','end'].includes(s.phase),'チェック中は変更できません');requireThat(s.aside.actions.DEM==='demonstration','DEMは除外されていません');if(s.records){s.records.common.tokens??={demonstration:false};s.records.common.tokens.demonstration=false;}place(s,'actions','DEM',0);break;
  case 'strikeAside':requireThat(['start','card','end'].includes(s.phase),'チェック中は変更できません');aside(s,'actions','STR','strikeTokens');break;
  case 'round':
   requireThat(s.phase==='start'&&s.round<5,'手番開始時のみ次ラウンドへ進めます');requireThat(!Object.keys(s.proposals).length,'投票待ちの法案を解決してください');requireThat(e.confirmed===true,'全政策の現在位置を確認してください');s.round++;
