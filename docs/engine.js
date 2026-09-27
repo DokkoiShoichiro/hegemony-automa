@@ -66,8 +66,7 @@ function reduce(state,e){const s=copy(state);let note=e.note||'';
   if(selected==='DEM')aside(s,'actions','DEM','demonstration');
   else if(selected==='STR'&&e.strExhausted)aside(s,'actions','STR','strikeTokens');
   else if(selected!=='PRESSURE'){
-   let destination=locate(s,'actions',selected)-2;
-   if(destination<0){requireThat(['floor','extend'].includes(e.bottom),'最下段付近の下降は現物で確認し、処理を選んでください');if(e.bottom==='floor')destination=0;}
+   const destination=Math.max(0,locate(s,'actions',selected)-2);
    place(s,'actions',selected,destination);
    if(e.first==='no')compress(s,'actions');
   }
@@ -97,3 +96,4 @@ function reduce(state,e){const s=copy(state);let note=e.note||'';
 }
 const api={ACTIONS,CHECKS,initial,copy,rows,rank,locate,move,compress,validate,reduce};root.WCA=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
+
