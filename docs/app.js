@@ -94,7 +94,9 @@ function renderEvents(){
  $('round').onclick=()=>act({type:'round',confirmed:$('roundConfirmed').checked,note:'次ラウンドの準備',source:'公式 p.6–7,9–10'});
 }
 const newGame=document.createElement('button');newGame.id='newGame';newGame.className='quiet';newGame.textContent='新しいゲーム';$('undo').before(newGame);
+const debugProduction=document.createElement('button');debugProduction.id='debugProduction';debugProduction.className='quiet debug-button';debugProduction.textContent='デバッグ：生産へ';$('undo').before(debugProduction);
 newGame.onclick=()=>WCARecords.openSetupDialog();
+debugProduction.onclick=()=>act({type:'debugProduction',source:'開発用ショートカット'});
 $('undo').onclick=()=>{if(!history.length||blocked||!WCARecords.canLeave())return;state=history.pop();render();persist();};
 $('saveFacts').onclick=()=>act({type:'facts',value:$('facts').value,note:'盤面メモを更新'});
 $('export').onclick=()=>{const raw=blocked?localStorage.getItem(KEY):JSON.stringify({state,history},null,2);const url=URL.createObjectURL(new Blob([raw||''],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='wca-save.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
