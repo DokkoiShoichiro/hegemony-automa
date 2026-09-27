@@ -7,7 +7,7 @@ const industries={Food:'農業',Luxury:'贅沢品',Health:'医療',Education:'�
 const statuses={unknown:'未確認',unbuilt:'未建設',market:'市場',built:'建設済み'};
 const fields={
  Working:{cash:'資金',population:'人口',workerCount:'労働者の総数',prosperity:'繁栄度',loans:'貸付金',influence:'影響力',vp:'勝利点',billMarkers:'法案マーカー',food:'食料',health:'健康',education:'教育',luxury:'贅沢品'},
- Capitalist:{revenue:'収入',capital:'資本',wealth:'富',loans:'貸付金',influence:'影響力',vp:'勝利点',billMarkers:'法案マーカー',food:'食料在庫',health:'健康在庫',education:'教育在庫',luxury:'贅沢品在庫',foodPrice:'食料単価',healthPrice:'健康単価',educationPrice:'教育単価',luxuryPrice:'贅沢品単価'},
+ Capitalist:{revenue:'収入',capital:'資本',wealth:'富',loans:'貸付金',influence:'影響力',vp:'勝利点',billMarkers:'法案マーカー',food:'食料在庫',health:'健康在庫',education:'教育在庫',luxury:'贅沢品在庫',freeTradeFood:'自由貿易区の食料',freeTradeLuxury:'自由貿易区のぜいたく品',foodPrice:'食料単価',healthPrice:'健康単価',educationPrice:'教育単価',luxuryPrice:'贅沢品単価'},
  Middle:{cash:'資金',population:'人口',workerCount:'労働者の総数',prosperity:'繁栄度',loans:'貸付金',influence:'影響力',vp:'勝利点',billMarkers:'法案マーカー',food:'食料',health:'健康',education:'教育',luxury:'贅沢品'},
  State:{cash:'国庫',loans:'貸付金',influence:'個人影響力',vp:'勝利点',food:'食料',luxury:'贅沢品',foodPrice:'食料単価',luxuryPrice:'贅沢品単価',workingLegitimacy:'労働者からの正当性',middleLegitimacy:'中産階級からの正当性',capitalistLegitimacy:'資本家からの正当性'}
 };
@@ -48,6 +48,13 @@ function applyAction(records,plan){
  return validate(r);
 }
 function applyStart(records){const r=clone(records);const w=r.personal.Working.values;while(w.loans>0&&w.cash>=50){w.cash-=50;w.loans--;}return validate(r);}
+function payCapitalist(values,amount){let due=Number(amount);check(Number.isSafeInteger(due)&&due>=0,'支払額が不正です');while(Number(values.revenue||0)+Number(values.capital||0)<due){values.capital=Number(values.capital||0)+50;values.loans=Number(values.loans||0)+1;}const fromRevenue=Math.min(Number(values.revenue||0),due);values.revenue-=fromRevenue;due-=fromRevenue;values.capital=Number(values.capital||0)-due;}
+function applyCapitalistPurchase(records,plan,foreignPolicy){
+ const r=clone(records),cap=r.personal.Capitalist.values,state=r.personal.State.values;check(plan&&['Foreign','BusinessDeal'].includes(plan.source),'購入先が不正です');let base=0,tariff=0,food=0,luxury=0,destination='regular';
+ if(plan.source==='Foreign'){check(['food','luxury'].includes(plan.resource),'海外市場から購入できるのは食料とぜいたく品です');const qty=Number(plan.qty);check(Number.isSafeInteger(qty)&&qty>0,'購入数が不正です');const unit=plan.resource==='food'?10:6,tariffUnit=plan.resource==='food'?({A:10,B:5,C:0})[foreignPolicy]:({A:6,B:3,C:0})[foreignPolicy];base=unit*qty;tariff=tariffUnit*qty;if(plan.resource==='food')food=qty;else luxury=qty;
+ }else{food=Number(plan.foodQty||0);luxury=Number(plan.luxuryQty||0);base=Number(plan.baseCost);destination=plan.destination;check(Number.isSafeInteger(food)&&food>=0&&Number.isSafeInteger(luxury)&&luxury>=0&&food+luxury>0,'商取引の購入数が不正です');check(Number.isSafeInteger(base)&&base>=0,'商取引カードの本体価格が不正です');check(['regular','freeTrade'].includes(destination),'保管先が不正です');tariff=destination==='regular'?Number(plan.tariff):0;check(Number.isSafeInteger(tariff)&&tariff>=0,'商取引カードの関税が不正です');}
+ payCapitalist(cap,base+tariff);state.cash=Number(state.cash||0)+tariff;const foodKey=destination==='freeTrade'?'freeTradeFood':'food',luxuryKey=destination==='freeTrade'?'freeTradeLuxury':'luxury';cap[foodKey]=Number(cap[foodKey]||0)+food;cap[luxuryKey]=Number(cap[luxuryKey]||0)+luxury;return {records:validate(r),base,tariff,total:base+tariff,food,luxury,destination};
+}
 function resolveDemonstration(records){
  const r=clone(records),w=r.personal.Working.values;check(r.common.tokens?.demonstration,'デモトークンがありません');
  let remaining=demonstrationStatus(r).unemployed+Object.values(r.personal.Working.unions||{}).filter(Boolean).length;w.influence=Number(w.influence||0)+1;
@@ -79,7 +86,7 @@ function createSetup(players,immigrant,market){
  check(players===2,'現在対応しているのは2人ゲームです');check(immigrant===''||skills[immigrant],'移民の技能が不正です');check(Array.isArray(market)&&(market.length===0||market.length===4)&&new Set(market).size===market.length,'企業市場は未入力か、異なる4枚を選んでください');check(market.every(id=>root.WCA_COMPANIES.some(c=>c.id===id&&!c.tags.includes('Initial_Setup'))),'市場に初期配置用企業は置けません');
  const r=blank(),stock={food:0,health:0,education:0,luxury:0},unions=Object.fromEntries(Object.keys(industries).map(k=>[k,false]));
  r.personal.Working={values:{...stock,cash:30,population:3,workerCount:10,prosperity:0,loans:0,influence:1,vp:0,billMarkers:3},unions,note:'労働者10人に対応する人口は3。'};
- r.personal.Capitalist={values:{revenue:120,capital:0,wealth:0,loans:0,influence:1,vp:0,billMarkers:3,food:1,luxury:2,education:2,health:0,foodPrice:12,healthPrice:8,educationPrice:8,luxuryPrice:8},note:''};
+ r.personal.Capitalist={values:{revenue:120,capital:0,wealth:0,loans:0,influence:1,vp:0,billMarkers:3,food:1,luxury:2,education:2,health:0,freeTradeFood:0,freeTradeLuxury:0,foodPrice:12,healthPrice:8,educationPrice:8,luxuryPrice:8},note:''};
  r.personal.State={values:{cash:120,loans:0,influence:0,vp:0,food:0,luxury:0,foodPrice:null,luxuryPrice:null,workingLegitimacy:null,middleLegitimacy:null,capitalistLegitimacy:null},note:'国家プレイヤーは不参加。'};
  const unemployed=Object.fromEntries(Object.keys(skills).map(k=>[k,0]));unemployed.Gray=1;if(immigrant)unemployed[immigrant]++;
  r.common={values:{health:5,education:5,influence:3,influencePrice:10,workingVotesOutside:17,capitalistVotesOutside:17,middleVotesOutside:17},unemployed:{Working:unemployed,Middle:Object.fromEntries(Object.keys(skills).map(k=>[k,null]))},tokens:{demonstration:false}};
@@ -132,7 +139,7 @@ function render(s,act){current=s;commit=act;dirty=false;const r=s.records||blank
  const classPick=document.getElementById('classPick');classPick.onchange=e=>{if(discard()){selectedClass=e.target.value;render(current,commit);}else e.target.value=selectedClass;};const pf=document.getElementById('personalForm');pf.onsubmit=e=>{e.preventDefault();commit({type:'record',section:'personal',id:selectedClass,value:{values:readNumbers(e.target),note:e.target.elements.note.value,unions:Object.fromEntries([...e.target.querySelectorAll('[data-union]')].map(el=>[el.dataset.union,el.checked]))},note:classes[selectedClass]+'の個人ボードを記録'});};
  document.querySelectorAll('#companyForm,#commonForm,#stateForm,#tradeForm,#personalForm').forEach(form=>form.addEventListener('input',()=>{dirty=true;form.querySelector('.draft-state').textContent='未保存';}));maybeOpenSetupDialog(r);
 }
-root.WCARecords={validate,update,applyAction,applyStart,resolveDemonstration,applyPolicyChange,nextFreeResource,educationCandidates,applyFreeAction,demonstrationStatus,render,blank,canLeave:discard,createSetup,openSetupDialog(){if(discard())maybeOpenSetupDialog(current?.records||blank(),true);},specialCompanies};
+root.WCARecords={validate,update,applyAction,applyStart,applyCapitalistPurchase,resolveDemonstration,applyPolicyChange,nextFreeResource,educationCandidates,applyFreeAction,demonstrationStatus,render,blank,canLeave:discard,createSetup,openSetupDialog(){if(discard())maybeOpenSetupDialog(current?.records||blank(),true);},specialCompanies};
 if(typeof window!=='undefined')window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 })(globalThis);
 
