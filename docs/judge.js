@@ -102,6 +102,8 @@ function workerAction(s){
  for(const [id,c] of Object.entries(r.companies||{})){const d=map[id];if(c.status==='built'&&d&&c.slots.every(x=>x.owner==='empty')&&d.workers.length<=3&&fill(d,unemployed))candidates.push(d);}
  let maxHire=0,best=[];function choose(start,left,total,names){if(total>maxHire){maxHire=total;best=names;}for(let i=start;i<candidates.length;i++){const d=candidates[i],next=fill(d,left);if(next&&total+d.workers.length<=3)choose(i+1,next,total+d.workers.length,[...names,d.name_jp]);}}choose(0,unemployed,0,[]);
  const unions=unionRange(r,map,unemployed,candidates);
+ const rearrangement=Object.entries(r.companies||{}).some(([id,c])=>c.status==='built'&&map[id]&&(c.slots.some(x=>x.owner==='empty')&&!c.slots.every(x=>x.owner==='empty')||c.slots.some(x=>x.owner==='Working'&&!x.committed)));
+ if(maxHire<2&&unions.upper===0&&rearrangement)return actionResult('AW',null,'失業者だけでは条件を満たしません。企業間の再配置を含む合法手を現物で確認してください。');
  if(maxHire<2&&unions.upper===0)return actionResult('AW',false,'2人以上の配置も労働組合の設立もできません。');
  if(unions.lower!==unions.upper)return actionResult('AW',null,`失業者は最大${maxHire}人配置できます。再配置を含む組合設立は現物確認が必要です。`,best);
  const targets=[...(unions.lower?[`労働組合 ${unions.lower}個を設立`]:[]),...(best.length?[`配置先：${best.join('、')}`]:[])];
