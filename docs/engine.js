@@ -48,12 +48,12 @@ function validate(s){
  if(['checks','action','end'].includes(s.phase))requireThat(s.card&&s.card.order?.length===4&&new Set(s.card.order).size===4&&s.card.order.every(x=>CHECKS.includes(x)),'AIカードが不正です');
  return s;
 }
-function reduce(state,e){const s=copy(state);s.proposals??={};let note=e.note||'';
+function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'';
  switch(e.type){
  case 'setup':{
   requireThat(e.confirmed===true,'初期状態への置き換えを確認してください');
   const prepared=root.WCARecords.createSetup(e.players,e.immigrant,e.market||[]);
-  const fresh=initial();Object.assign(s,fresh,{log:copy(state.log),records:prepared,positions:{1:'C',2:'B',3:'A',4:'B',5:'C',6:'B',7:'B'}});
+  s={...initial(),records:prepared,positions:{1:'C',2:'B',3:'A',4:'B',5:'C',6:'B',7:'B'}};
   note='2人ゲームの初期状態を適用（準備フェイズ前の追加労働者は加算しない）';break;
  }
  case 'record':
