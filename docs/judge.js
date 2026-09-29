@@ -133,7 +133,7 @@ function demonstrationAction(s){
  const participants=['Capitalist','Middle','State'].filter(x=>r.participants[x]!=='absent'),labels={Capitalist:'資本家階級',Middle:'中産階級',State:'国家'};
  return actionResult('DEM',ok,ok?`デモを行います。VP減少は${participants.map(x=>labels[x]).join(' → ')||'対象なし'}の順です。`:`失業者${unemployed}人、空きスロット${slots}個のため実行できません。`,participants.map(x=>labels[x]),[`条件：失業者${unemployed} > 空きスロット${slots}＋2`],ok?['VP減少は生産フェイズのデモ解決時に処理します。']:[],ok?{action:'DEM'}:null);
 }
-function specialAction(s){return actionResult('SA',null,'実物AIカード下部の特殊アクションを確認してください。');}
+function specialAction(s){const o=actionResult('SA',null,'実物AIカード下部の特殊アクションを確認し、実行可否を選んでください。');o.reasons.push('実行不能なら、最優先の場合は次点行動へ進み、次点の場合は政治的圧力を行います。');return o;}
 function evaluateAction(s,action){if(!s?.records)return actionResult(action,null,'盤面の初期設定が必要です。');if(action==='PB')return policyAction(s);if(action==='BGS')return goodsAction(s);if(action==='STR')return strikeAction(s);if(action==='AW')return workerAction(s);if(action==='DEM')return demonstrationAction(s);if(action==='SA')return specialAction(s);throw Error('未知の行動です');}
 function evaluate(s,check,answers={}){if(!s?.records)return {status:'needsReview',movements:[],reasons:[],questions:[],warnings:['盤面の初期設定が必要です。'],source:'Word転記'};if(check==='PB')return policyCheck(s,answers);if(check==='STR')return strikeCheck(s);if(check==='BGS')return goodsCheck(s,answers);if(check==='AW')return workersCheck(s,answers);throw Error('未知のチェックです');}
 root.WCAJudge={evaluate,evaluateAction,SAMPLE_CARDS,foreignMarketPrice,immediateVote2P};if(typeof module!=='undefined')module.exports=root.WCAJudge;
