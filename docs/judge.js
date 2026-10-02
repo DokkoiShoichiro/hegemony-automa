@@ -139,7 +139,7 @@ function card19WorkerAction(s){
   companies.push({id,c,d,fixed});
  }
  const available=Object.fromEntries(SKILLS.map(skill=>[skill,tokens.filter(t=>t.skill===skill).length]));
- const layouts=[];let nodes=0,overflow=false;
+ let considerLayout=()=>{};
  function options(x,left){
   const result=[];if(!Object.keys(x.fixed).length)result.push(Array(x.c.slots.length).fill(null));
   function fillSlots(i,next,slots){
@@ -152,15 +152,12 @@ function card19WorkerAction(s){
   return [...new Map(result.map(v=>[JSON.stringify(v),v])).values()];
  }
  function walk(i,left,chosen){
-  if(++nodes>100000){overflow=true;return;}
-  if(i===companies.length){layouts.push({left:{...left},chosen:[...chosen]});return;}
+  if(i===companies.length){considerLayout({left:{...left},chosen});return;}
   const x=companies[i];for(const slots of options(x,left)){
    const next={...left};let ok=true;for(let k=0;k<slots.length;k++)if(slots[k]&&!x.fixed[k]&&--next[slots[k]]<0){ok=false;break;}
-   if(ok)walk(i+1,next,[...chosen,slots]);if(overflow)return;
+   if(ok)walk(i+1,next,[...chosen,slots]);
   }
  }
- walk(0,available,[]);
- if(overflow)return actionResult('AW',null,'カード#19の合法な配置案が多すぎるため、自動選択を停止しました。企業数を確認し、現物の優先順位で選択してください。');
  const beforeIndustry=Object.fromEntries(Object.keys(UNION_SKILL).map(k=>[k,0]));for(const x of companies)beforeIndustry[x.d.industry]+=x.c.slots.filter(v=>v.owner==='Working').length;
  const wageRank={unknown:0,L1:1,L2:2,L3:3},industryRank={Food:3,Media:2,Luxury:1};
  const stableRandom=id=>{let h=2166136261;for(const ch of `${s.round}|${s.turn}|${s.card.number}|${id}`){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;};
@@ -192,11 +189,11 @@ function card19WorkerAction(s){
   const ranked=targets.map(item=>({name:item.x.d.name_jp,key:companyPriority(item)})).sort((a,b)=>compareVector(b.key,a.key));
   return {newUnions,unemployedAssigned,moved,ranked,changes,reassignment:{companies:states,unemployed,unions}};
  }
- const candidates=layouts.map(makeCandidate).filter(Boolean);
- if(!candidates.length)return actionResult('AW',false,'2人以上の失業労働者を企業へ配置することも、労働組合を設立することもできません。');
  function compare(a,b){let d=a.newUnions-b.newUnions;if(d)return d;for(let i=0;i<Math.max(a.ranked.length,b.ranked.length);i++){d=compareVector(a.ranked[i]?.key||[],b.ranked[i]?.key||[]);if(d)return d;}return a.unemployedAssigned-b.unemployedAssigned||a.moved-b.moved;}
- candidates.sort((a,b)=>compare(b,a));const best=candidates[0],targets=[...(best.newUnions?[`労働組合${best.newUnions}個を設立`]:[]),...best.changes];
- return actionResult('AW',true,`カード#19：${best.unemployedAssigned}人の失業労働者を配置${best.newUnions?`し、労働組合を${best.newUnions}個設立`:''}します。`,targets,[`政策2${policy}：${policy==='C'?'誓約中でない在職者を含む':'失業者のみの'}全合法案${candidates.length}件を比較`,`優先順：労働組合 → 最多の失業者を雇う企業 → 組合条件 → 賃金 → 国家 → 資本家 → 健康・教育 → 食料・メディア・ぜいたく品 → ランダム`],[],{action:'AW',reassignment:best.reassignment});
+ let best=null,candidateCount=0;considerLayout=layout=>{const candidate=makeCandidate(layout);if(!candidate)return;candidateCount++;if(!best||compare(candidate,best)>0)best=candidate;};walk(0,available,[]);
+ if(!best)return actionResult('AW',false,'2人以上の失業労働者を企業へ配置することも、労働組合を設立することもできません。');
+ const targets=[...(best.newUnions?[`労働組合${best.newUnions}個を設立`]:[]),...best.changes];
+ return actionResult('AW',true,`カード#19：${best.unemployedAssigned}人の失業労働者を配置${best.newUnions?`し、労働組合を${best.newUnions}個設立`:''}します。`,targets,[`政策2${policy}：${policy==='C'?'誓約中でない在職者を含む':'失業者のみの'}全合法案${candidateCount}件を比較`,`優先順：労働組合 → 最多の失業者を雇う企業 → 組合条件 → 賃金 → 国家 → 資本家 → 健康・教育 → 食料・メディア・ぜいたく品 → ランダム`],[],{action:'AW',reassignment:best.reassignment});
 }
 function workerAction(s){
  const card19=String(s.card?.number)==='19'?card19WorkerAction(s):null;if(card19)return card19;
