@@ -3,7 +3,7 @@
 const SKILLS=['Gray','Green','Blue','White','Orange','Purple'];
 const DESIRED={1:'A',2:'A',3:'A',4:'A',5:'A',6:'C',7:'B'};
 const CARD_DATA={
- '1':{order:['AW','BGS','PB','STR'],policies:['1','2'],bonus:'失業労働者を4人まで割り当て、企業へ置いた1人ごとに所有者から4を得る',bonusType:'assign4Paid',special:'他階級の投票駒を3個引くまで引き、その3個を労働者の駒と交換する',specialType:'replaceVotes',influenceIcons:1},
+ '1':{order:['AW','BGS','PB','STR'],policies:['1','2'],bonus:'失業労働者を4人まで割り当て、企業へ置いた1人ごとに所有者から4ヴァルディスを得る',bonusType:'assign4Paid',special:'他階級の投票駒を3個引くまで引き、その3個を労働者の駒と交換する',specialType:'replaceVotes',influenceIcons:1},
  '2':{order:['AW','PB','BGS','STR'],policies:['3','1'],bonus:'AW前に可能なら共同農場を1つ設立して労働者を割り当てる',bonusType:'coopFarm',special:'国家から影響力を3個まで各5で購入し、不足1個につき投票駒2個を袋へ入れる',specialType:'buyInfluence',specialLegitimacy:1},
  '3':{order:['BGS','AW','PB','STR'],policies:['1','7'],bonus:'政策4A/Bなら公共サービスだけを購入し、購入前に失業者1人につき国家から5を得る',bonusType:'publicOnlyUnemployedCash',bonusLegitimacy:1,special:'6個引き、労働者の駒を戻し、他階級の駒を除外する',specialType:'removeDrawnVotes',influenceIcons:1},
  '4':{order:['BGS','PB','AW','STR'],policies:['1','6'],bonus:'国家の教育価格を半額（切り上げ）にする',bonusType:'halfEducation',bonusLegitimacy:1,special:'人口と同数の投票駒を袋へ入れる',specialType:'populationVotes'},
@@ -28,7 +28,7 @@ const CARD_DATA={
  '23':{order:['PB','AW','BGS','STR'],policies:['5','3'],bonus:'法案提議前に投票駒2個を袋へ入れる',bonusType:'proposalVotes',special:'国家から影響力を3個まで各5で購入し、不足1個につき投票駒2個を袋へ入れる',specialType:'buyInfluence',specialLegitimacy:1,influenceIcons:1},
  '24':{order:['PB','BGS','AW','STR'],policies:['5','4'],bonus:'可能なら法案を2つ提議する',bonusType:'twoProposals',special:'最も多く労働者を雇用する他プレイヤーが15を支払う',specialType:'largestEmployerPays'},
  '25':{order:['BGS','AW','PB','STR'],policies:['5','6'],bonus:'政策4A/Bなら公共サービスだけを購入し、購入前に失業者1人につき国家から5を得る',bonusType:'publicOnlyUnemployedCash',bonusLegitimacy:1,special:'失業者が4人以上なら2人を取り除いて10を得る',specialType:'removeWorkers',influenceIcons:1},
- '26':{order:['AW','PB','BGS','STR'],policies:['5','7'],bonus:'失業労働者を4人まで割り当て、企業へ置いた1人ごとに所有者から4を得る',bonusType:'assign4Paid',special:'6個引き、労働者の駒を戻し、他階級の駒を除外する',specialType:'removeDrawnVotes'},
+ '26':{order:['AW','PB','BGS','STR'],policies:['5','7'],bonus:'失業労働者を4人まで割り当て、企業へ置いた1人ごとに所有者から4ヴァルディスを得る',bonusType:'assign4Paid',special:'6個引き、労働者の駒を戻し、他階級の駒を除外する',specialType:'removeDrawnVotes'},
  '27':{order:['BGS','AW','PB','STR'],policies:['4','3'],bonus:'国家の教育価格を半額（切り上げ）にする',bonusType:'halfEducation',bonusLegitimacy:1,special:'他階級の投票駒を3個引くまで引き、その3個を労働者の駒と交換する',specialType:'replaceVotes',influenceIcons:1},
  '28':{order:['BGS','PB','AW','STR'],policies:['6','1'],bonus:'政策1A/Bなら他プレイヤーから買う贅沢品費用の半分を国家が支払う',bonusType:'halfLuxury',bonusLegitimacy:1,special:'人口と同数の投票駒を袋へ入れる',specialType:'populationVotes'},
  '29':{order:['PB','AW','BGS','STR'],policies:['6','2'],bonus:'可能なら法案を2つ提議する',bonusType:'twoProposals',special:'可能なら資本家階級に20を支払い5VPを得る',specialType:'payForVp',influenceIcons:1},
