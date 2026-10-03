@@ -75,8 +75,26 @@ const assert=require('node:assert/strict');
   await page.locator('[data-election-cube="Capitalist"]').fill('2');
   await page.locator('#electionDeclare').click();
   assert.equal(await page.evaluate(()=>Object.values(state.election.cubes).reduce((a,b)=>a+b,0)),5);
+  await page.locator('#electionResolve').click();
+  const passedInstructions=await page.locator('#boardInstructionDialog').textContent();
+  assert.match(passedInstructions,/政策1のマーカーをCからBへ移す/);
+  assert.match(passedInstructions,/労働者のVPを1増やす/);
+  assert.match(passedInstructions,/資本家のVPを3増やす/);
+  assert.match(passedInstructions,/政策1から資本家の法案マーカーを取り除く/);
+  assert.doesNotMatch(passedInstructions,/優先カード|AIカード/);
+  await page.locator('#boardInstructionDone').click();
+  const coverage=await page.evaluate(()=>{
+   const before=E.copy(state),after=E.copy(state),company=after.records.companies.cc_supermarket_init;
+   after.round=before.round+1;after.positions['2']=before.positions['2']==='A'?'B':'A';after.proposals['2']={proposer:'Working',from:before.positions['2'],target:after.positions['2']};
+   after.records.personal.Working.values.vp++;after.records.personal.Working.unions.Food=true;after.records.common.values.influence++;after.records.common.values.workingVotesOutside--;
+   after.records.common.unemployed.Working.Gray++;after.records.common.tokens.demonstration=true;company.machinery=true;company.strike=true;company.slots[0].committed=!company.slots[0].committed;
+   after.actions={0:['PB'],1:['AW']};after.card={number:'30'};
+   return boardInstructions(before,after,{type:'gameEndApply'}).join('\n');
+  });
+  for(const expected of ['ラウンドマーカー','政策2のマーカー','政策2の','法案マーカーを置く','労働者のVP','国家の影響力','投票駒を袋の外から','失業未熟練労働者','Food産業の労働組合','機械化トークン','ストライキトークン','1枠','デモトークン'])assert.match(coverage,new RegExp(expected));
+  assert.doesNotMatch(coverage,/優先カード|AIカード/);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   assert.deepEqual(errors,[]);
-  console.log('PASS automation UI: free immediate vote, wage-free automated company, physical bag input, mobile width');
+  console.log('PASS automation UI: complete policy instructions, internal cards omitted, physical bag, mobile width');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

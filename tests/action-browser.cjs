@@ -28,7 +28,7 @@ const path=require('node:path'),assert=require('node:assert/strict');
   assert.equal(await page.locator('#first').inputValue(),'no');
   assert.equal(await page.locator('#second').inputValue(),'unknown');
   const cubes=await page.evaluate(()=>state.records.common.values.workingVotesOutside);
-  await page.locator('#second').selectOption('no');await page.locator('#manualConfirmed').check();await page.locator('#next').click();assert.match(await page.locator('#boardInstructionDialog').textContent(),/袋の外の労働者票を3減らす/);await page.locator('#boardInstructionDone').click();
+  await page.locator('#second').selectOption('no');await page.locator('#manualConfirmed').check();await page.locator('#next').click();assert.match(await page.locator('#boardInstructionDialog').textContent(),/労働者の投票駒を袋の外から3個、袋へ入れる/);await page.locator('#boardInstructionDone').click();
   assert.equal(await page.evaluate(()=>state.records.common.values.workingVotesOutside),cubes-3);
   await page.evaluate(()=>{state.phase='action';state.actions={0:['SA','STR','DEM','AW','PB'],2:['BGS']};render();});
   assert.equal(await page.locator('#first').inputValue(),'yes');await page.locator('#next').click();assert.equal(await page.locator('#boardInstructionDialog').isVisible(),true);await page.locator('#boardInstructionDone').click();
@@ -44,4 +44,3 @@ const path=require('node:path'),assert=require('node:assert/strict');
   console.log('PASS automatic action advice and manual special action on mobile');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
-
