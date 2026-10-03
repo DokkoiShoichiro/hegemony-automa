@@ -53,6 +53,7 @@ function validate(s){
   requireThat(ids.length===all.length&&new Set(ids).size===all.length&&all.every(x=>ids.includes(x)),'カードに重複・欠落があります');
  }
  requireThat(typeof s.facts==='string'&&Array.isArray(s.log),'記録が不正です');
+ if(s.preparationTrade!==undefined){requireThat(s.phase==='preparation','準備フェイズ外に輸出入カードの下書きがあります');root.WCARecords.tradeData(s.preparationTrade,({A:0,B:1,C:2})[s.positions[6]],true);}
  if(s.aiDeck!==undefined){requireThat(validDeck(s.aiDeck)&&validDeck(s.aiDiscard||[])&&!s.aiDeck.some(x=>(s.aiDiscard||[]).includes(String(x))),'AIカードの山札が不正です');}
  requireThat(s.positions&&Object.values(s.positions).every(x=>['A','B','C'].includes(x)),'政策位置が不正です');
  if(s.proposals!==undefined){requireThat(s.proposals&&typeof s.proposals==='object'&&!Array.isArray(s.proposals),'法案記録が不正です');for(const [id,p] of Object.entries(s.proposals)){requireThat(/^[1-7]$/.test(id)&&p&&['Working','Capitalist','other'].includes(p.proposer)&&['A','B','C'].includes(p.from)&&['A','B','C'].includes(p.target),'法案記録が不正です');}}
@@ -168,8 +169,9 @@ function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'';
  case 'strikeAside':requireThat(['start','card','end'].includes(s.phase),'チェック中は変更できません');aside(s,'actions','STR','strikeTokens');break;
  case 'round':
   requireThat(!s.records&&['start','roundEnd'].includes(s.phase)&&s.round<5,'盤面記録があるゲームでは準備フェイズを完了してください');s.round++;s.turn=1;s.phase='start';if(s.aside.actions.STR==='strikeTokens')place(s,'actions','STR',0);for(let i=1;i<=7;i++){const id=String(i);if(s.round===5&&i===7){aside(s,'policies',id,'finalRound');continue;}if(!(id in s.aside.policies))continue;const desired=priorityDesired(s,id),d=Math.abs(s.positions[id].charCodeAt(0)-desired.charCodeAt(0));if(d)place(s,'policies',id,d-1);}note=`ラウンド${s.round}へ`;break;
+ case 'preparationTrade':{requireThat(s.phase==='preparation'&&s.round<5&&s.records,'準備フェイズではありません');const count=({A:0,B:1,C:2})[s.positions[6]];s.preparationTrade=root.WCARecords.tradeData(e.value,count,true);note=`輸出カードと商取引カード${count}枚を記録`;break;}
  case 'preparationApply':
-  requireThat(['preparation','roundEnd'].includes(s.phase)&&s.round<5&&s.records,'準備フェイズではありません');requireThat(!Object.keys(s.proposals).length,'投票待ちの法案を解決してください');requireThat(e.confirmed===true,'実物カードと全政策の現在位置を確認してください');{const result=root.WCARecords.applyPreparation(s.records,s.positions,e.plan||{});s.records=result.records;s.lastPreparation={...result.preview,market:result.market,immigration:result.immigration};}s.round++;s.turn=1;s.phase='start';delete s.production;
+  requireThat(['preparation','roundEnd'].includes(s.phase)&&s.round<5&&s.records,'準備フェイズではありません');requireThat(!Object.keys(s.proposals).length,'投票待ちの法案を解決してください');requireThat(e.confirmed===true,'実物カードと全政策の現在位置を確認してください');requireThat(s.preparationTrade,'輸出入カードの内容をダイアログで記録してください');{const result=root.WCARecords.applyPreparation(s.records,s.positions,{...(e.plan||{}),trade:s.preparationTrade});s.records=result.records;s.lastPreparation={...result.preview,market:result.market,immigration:result.immigration};}s.round++;s.turn=1;s.phase='start';delete s.production;delete s.preparationTrade;
   if(s.aside.actions.STR==='strikeTokens')place(s,'actions','STR',0);
   for(let i=1;i<=7;i++){const id=String(i);if(s.round===5&&i===7){aside(s,'policies',id,'finalRound');continue;}if(!(id in s.aside.policies))continue;if(String(s.aside.policies[id]).startsWith('bill:')&&s.records){const owner=String(s.aside.policies[id]).slice(5);if(['Working','Capitalist'].includes(owner))s.records.personal[owner].values.billMarkers=Math.min(3,Number(s.records.personal[owner].values.billMarkers||0)+1);}
    const desired=priorityDesired(s,id),d=Math.abs(s.positions[id].charCodeAt(0)-desired.charCodeAt(0));if(d)place(s,'policies',id,d-1);

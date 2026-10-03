@@ -26,12 +26,12 @@ test('a complete two-player round reaches the next round through Production, Ele
  s=E.reduce(s,{type:'electionResolve',spends:{Capitalist:0},autoSymbols:{}});assert.equal(s.phase,'scoring');assert.equal(s.positions['1'],'B');
  s=E.reduce(s,{type:'scoringApply'});assert.equal(s.phase,'preparation');
  const market=WCA_COMPANIES.filter(d=>d.class==='Capitalist'&&!d.tags.includes('Initial_Setup')&&s.records.companies[d.id]?.status==='unbuilt').slice(0,4).map(d=>d.id);
- s=E.reduce(s,{type:'preparationApply',confirmed:true,plan:{market,immigration:['Gray'],exportCard:'統合テスト輸出',businessDeals:['統合テスト商取引']}});
+ const trade={exportCard:{name:'統合テスト輸出',offers:[{resource:'food',quantity:3,revenue:20}]},businessDeals:[{name:'統合テスト商取引',food:2,luxury:1,cost:20}]};
+ s=E.reduce(s,{type:'preparationTrade',value:trade});
+ s=E.reduce(s,{type:'preparationApply',confirmed:true,plan:{market,immigration:['Gray']}});
  assert.deepEqual({round:s.round,turn:s.turn,phase:s.phase},{round:2,turn:1,phase:'start'});
  assert.equal(Object.keys(s.proposals).length,0);
- assert.equal(s.records.trade.exportCard,'統合テスト輸出');
- assert.equal(s.records.trade.businessDeals,'統合テスト商取引');
+ assert.deepEqual(s.records.trade,trade);
  assert.equal(s.records.companies.cc_supermarket_init.slots.every(x=>!x.committed),true);
  assert.deepEqual(E.validate(JSON.parse(JSON.stringify(s))),s);
 });
-
