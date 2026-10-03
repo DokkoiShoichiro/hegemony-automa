@@ -12,6 +12,22 @@ const assert=require('node:assert/strict');
   await page.locator('#setupWelcomeForm button[type=submit]').click();
 
   await page.evaluate(()=>{
+   state=E.reduce(state,{type:'start'});
+   state=E.reduce(state,{type:'card',number:'6',order:['PB','BGS','AW','STR'],policies:['2','3'],bonus:'影響力を支払わず即時投票を要求する'});
+   for(let i=0;i<4;i++)state=E.reduce(state,{type:'check',confirmed:true,note:'UI test',movements:[]});
+   state.actions={0:E.ACTIONS.filter(x=>x!=='PB'),2:['PB']};
+   state.records.personal.Working.values.influence=0;
+   state.records.personal.Working.values.billMarkers=0;
+   state.records.personal.Capitalist.values.influence=5;
+   state.records.common.values.workingVotesOutside=24;
+   render();
+  });
+  assert.match(await page.locator('[data-pb-for="first"]').textContent(),/即時投票ウインドウ/);
+  await page.locator('#next').click();
+  assert.deepEqual(await page.evaluate(()=>({phase:state.phase,mode:state.election.mode,step:state.election.step})),{phase:'election',mode:'immediate',step:'declare'});
+  if(await page.locator('#boardInstructionDialog').count())await page.locator('#boardInstructionDone').click();
+
+  await page.evaluate(()=>{
    state.turn=5;
    state.phase='player';
    state=E.reduce(state,{type:'playerEnd'});
@@ -46,6 +62,6 @@ const assert=require('node:assert/strict');
   assert.equal(await page.evaluate(()=>Object.values(state.election.cubes).reduce((a,b)=>a+b,0)),5);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   assert.deepEqual(errors,[]);
-  console.log('PASS automation UI: food auto-plan, digital five-cube draw, mobile width');
+  console.log('PASS automation UI: forced free immediate vote, food auto-plan, digital five-cube draw, mobile width');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
