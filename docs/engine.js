@@ -65,7 +65,7 @@ function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'';
  switch(e.type){
  case 'setup':{
   requireThat(e.confirmed===true,'初期状態への置き換えを確認してください');
-  const automaClass=e.automaClass==='Capitalist'?'Capitalist':'Working',prepared=root.WCARecords.createSetup(e.players,e.immigrant,e.market||[]),base=automaClass==='Capitalist'?capitalistInitial():initial();prepared.participants.Working=automaClass==='Working'?'automa':'human';prepared.participants.Capitalist=automaClass==='Capitalist'?'automa':'human';
+  const automaClass=e.automaClass==='Capitalist'?'Capitalist':'Working',prepared=root.WCARecords.createSetup(e.players,e.immigrant,e.market||[]),base=automaClass==='Capitalist'?capitalistInitial():initial();prepared.participants.Working=automaClass==='Working'?'automa':'human';prepared.participants.Capitalist=automaClass==='Capitalist'?'automa':'human';if(e.trade)prepared.trade=root.WCARecords.tradeData(e.trade,1,true);
   s={...base,records:prepared,positions:{1:'C',2:'B',3:'A',4:'B',5:'C',6:'B',7:'B'},aiDeck:validDeck(e.deck)?e.deck.map(String):(automaClass==='Capitalist'?Object.keys(root.CCAJudge?.CARD_DATA||{}):deckNumbers()),aiDiscard:[]};
   note=`2人ゲームの初期状態を適用（${automaClass==='Capitalist'?'資本家':'労働者'}オートマ）`;break;
  }
