@@ -99,7 +99,8 @@ function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'';
     requireThat(e.plan?.action==='PB'&&e.policyReviewed===true,'法案の提議計画が不正です');const cap=s.records.personal.Capitalist.values;
     if(e.plan.bonusVotes) s.records.common.values.capitalistVotesOutside=Math.max(0,Number(s.records.common.values.capitalistVotesOutside||0)-Number(e.plan.bonusVotes));
     for(const p of e.plan.proposals||[]){if(p.immediate){requireThat(Number(cap.influence)>=Number(p.immediateCost||0),'即時投票の影響力が足りません');cap.influence-=Number(p.immediateCost||0);immediate.push({id:p.id,proposer:'Capitalist',from:p.from,target:p.target,immediate:true});}else{requireThat(Number(cap.billMarkers)>0,'法案マーカーがありません');cap.billMarkers--;aside(s,'policies',p.id,'bill:Capitalist');s.proposals[p.id]={proposer:'Capitalist',from:p.from,target:p.target,round:s.round,turn:s.turn};}}
-   }else requireThat(e.confirmed===true,'資本家オートマの行動を盤面へ反映したことを確認してください');
+   }else if(selected==='BC'){requireThat(e.plan?.action==='BC','企業の設立計画が不正です');s.records=root.WCARecords.applyCapitalistAutomaBuild(s.records,e.plan,s.positions[2],s.card?.bonusType);}
+   else requireThat(e.confirmed===true,'資本家オートマの行動を盤面へ反映したことを確認してください');
    if(selected==='PRESSURE')s.records.common.values.capitalistVotesOutside=Math.max(0,Number(s.records.common.values.capitalistVotesOutside||0)-3);
    else{const destination=Math.max(0,locate(s,'actions',selected)-2);place(s,'actions',selected,destination);}
    if(e.first==='no'&&selected!=='PRESSURE')compress(s,'actions');s.card=null;s.index=0;if(immediate.length)beginElection(s,immediate,'immediate','player');else s.phase='player';note=`資本家オートマ：${selected}を実行`;break;
