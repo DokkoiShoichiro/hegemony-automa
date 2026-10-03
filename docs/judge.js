@@ -237,7 +237,7 @@ function workerAction(s){
  if(totalHire<2&&unions.upper===0&&rearrangement)return actionResult('AW',null,'失業者だけでは条件を満たしません。企業間の再配置を含む合法手を現物で確認してください。');
  if(totalHire<2&&unions.upper===0)return actionResult('AW',false,'2人以上の配置も労働組合の設立もできません。');
  if(unions.upper>0)return actionResult('AW',null,`失業者は最大${maxHire}人配置できます。労働組合を優先する配置は現物確認が必要です。`,best);
- const targets=[...(farmAllocation?[`共同農場を設立して${bonusHire}人配置`]:[]),...(unions.lower?[`労働組合 ${unions.lower}個を設立`]:[]),...(best.length?[`配置先：${best.join('、')}`]:[])],allocations=[...(farmAllocation?[farmAllocation]:[]),...bestAlloc];
+ const targets=[...(farmAllocation?[`共同農場を設立して全${bonusHire}スロットに配置`]:[]),...(unions.lower?[`労働組合 ${unions.lower}個を設立`]:[]),...(bestAlloc.length?[`配置先：${bestAlloc.map(a=>`${map[a.companyId].name_jp}（全${a.slots.length}スロット）`).join('、')}`]:[])],allocations=[...(farmAllocation?[farmAllocation]:[]),...bestAlloc];
  const ownerPayments={};if(paidFour)for(const a of bestAlloc){const owner=map[a.companyId]?.class;if(owner&&owner!=='Working')ownerPayments[owner]=Number(ownerPayments[owner]||0)+a.slots.length*4;}
  return actionResult('AW',true,targets.join('。')||`失業者を${totalHire}人配置します。`,targets,[`失業者から最大${totalHire}人の配置を計算${paidFour?`（カード#${s.card.number}は4人まで）`:''}${selectedPlan.gainedSkill?`、サプライから${selectedPlan.gainedSkill}の熟練労働者を追加`:''}`,'対象候補はInstructionカードの優先順で確定'],[],{action:'AW',allocations,ownerPayments,gainedSkill:selectedPlan.gainedSkill||null,buildCompanyId:farmId});
 }
