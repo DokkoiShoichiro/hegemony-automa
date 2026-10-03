@@ -28,6 +28,18 @@ const assert=require('node:assert/strict');
   if(await page.locator('#boardInstructionDialog').count())await page.locator('#boardInstructionDone').click();
 
   await page.evaluate(()=>{
+   state.phase='player';
+   const c=state.records.companies.cc_electronics_auto;
+   c.status='built';c.operating='yes';c.wage='L2';
+   state.positions[2]='B';render();
+   act({type:'policy',id:'2',position:'A',result:'position',proposer:'other'});
+  });
+  const wageInstructions=await page.locator('#boardInstructionDialog').textContent();
+  assert.doesNotMatch(wageInstructions,/自動化電子工場の賃金/);
+  assert.equal(await page.evaluate(()=>state.records.companies.cc_electronics_auto.wage),'unknown');
+  await page.locator('#boardInstructionDone').click();
+
+  await page.evaluate(()=>{
    state.turn=5;
    state.phase='player';
    state=E.reduce(state,{type:'playerEnd'});
@@ -56,12 +68,15 @@ const assert=require('node:assert/strict');
   });
   await page.locator('#electionRefill').click();
   if(await page.locator('#boardInstructionDialog').count())await page.locator('#boardInstructionDone').click();
-  assert.match(await page.locator('#flow').textContent(),/アプリが袋から抽選する5個/);
-  assert.equal(await page.locator('[data-election-cube]').count(),0);
+  assert.match(await page.locator('#flow').textContent(),/実物の袋から引いた5個/);
+  assert.equal(await page.locator('[data-election-cube]').count(),3);
+  await page.locator('[data-election-cube="Working"]').fill('2');
+  await page.locator('[data-election-cube="Middle"]').fill('1');
+  await page.locator('[data-election-cube="Capitalist"]').fill('2');
   await page.locator('#electionDeclare').click();
   assert.equal(await page.evaluate(()=>Object.values(state.election.cubes).reduce((a,b)=>a+b,0)),5);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   assert.deepEqual(errors,[]);
-  console.log('PASS automation UI: forced free immediate vote, food auto-plan, digital five-cube draw, mobile width');
+  console.log('PASS automation UI: free immediate vote, wage-free automated company, physical bag input, mobile width');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
