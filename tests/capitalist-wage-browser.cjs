@@ -14,12 +14,13 @@ const assert=require('node:assert/strict');
   await page.getByText('賃金を上げる',{exact:true}).first().click();
   await page.locator('#capWageCompany').selectOption('cc_supermarket_init');
   assert.equal(await page.locator('#capWageTarget').inputValue(),'L3');
+  assert.match(await page.locator('#capWageTarget option:checked').textContent(),/L3（25）/);
   await page.locator('#capRaiseWage').click();
   const company=await page.evaluate(()=>state.records.companies.cc_supermarket_init);
   assert.equal(company.wage,'L3');
   assert.equal(company.slots.every(x=>x.committed),true);
+  assert.match(await page.locator('#boardInstructionDialog').textContent(),/賃金をL2（20）からL3（25）へ変更/);
   assert.deepEqual(errors,[]);
   console.log('PASS capitalist wage increase: all company workers committed');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
-
