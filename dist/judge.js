@@ -138,7 +138,7 @@ function goodsAction(s){
  if(r.participants.Middle!=='absent')return actionResult('BGS',null,'中産階級の販売在庫・価格が未対応です。',[],[],['現物で購入先を確認してください。']);
  let plans=result.plans;
  if(!plans.length)return actionResult('BGS',false,'繁栄度上昇に必要な商品・サービスを購入できません。');
- const gray=Number(r.common.unemployed?.Working?.Gray||0),healthRaisesPopulation=w.workerCount!=null&&Math.ceil((Number(w.workerCount)+1)/4)>Number(w.population);
+ const gray=Number(r.common.unemployed?.Working?.Gray||0),healthRaisesPopulation=w.workerCount!=null&&root.WCARecords.workingPopulation(Number(w.workerCount)+1)>Number(w.population);
  if(healthRaisesPopulation&&plans.some(x=>x.key!=='health'))plans=plans.filter(x=>x.key!=='health');
  const order={health:0,education:1,luxury:2};
  plans.sort((a,b)=>(a.workerCost===0?0:1)-(b.workerCost===0?0:1)||(gray>=3&&a.key==='education'?-1:gray>=3&&b.key==='education'?1:0)||a.unit-b.unit||order[a.key]-order[b.key]);
