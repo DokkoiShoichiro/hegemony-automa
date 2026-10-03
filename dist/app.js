@@ -12,7 +12,7 @@ try{const raw=localStorage.getItem(KEY);if(raw){const data=JSON.parse(raw);E.val
 if(state.phase==='roundEnd')state.phase='preparation';
 function showError(msg){$('error').hidden=false;$('error').textContent=msg;}
 function persist(){if(blocked)return;$('saved').textContent='';try{localStorage.setItem(KEY,JSON.stringify({state,history}));$('saved').textContent='この端末に保存済み';}catch(e){$('saved').textContent='保存失敗・JSONを書き出してください';showError('ブラウザへの保存に失敗しました。画面の状態は保持しています。JSONを書き出してください。');}}
-const instructionEvents=new Set(['action','freeAction','playerPolicy','playerPurchase','playerBuild','playerWage','playerSell','playerExport','playerLobby','playerPressure','productionProduce','productionNeeds','productionImf','productionTaxes','electionRefill','electionEmergencyRefill','electionResolve','scoringApply','preparationApply','policy','demResolve']);
+const instructionEvents=new Set(['start','action','freeAction','playerPolicy','playerPurchase','playerBuild','playerWage','playerSell','playerExport','playerLobby','playerPressure','productionProduce','productionNeeds','productionImf','productionTaxes','electionRefill','electionEmergencyRefill','electionResolve','scoringApply','preparationApply','policy','demResolve']);
 const classLabels={Working:'労働者',Capitalist:'資本家',Middle:'中産階級',State:'国家'},skillLabels={Gray:'未熟練',Green:'農業',Blue:'ぜいたく品',White:'医療',Orange:'教育',Purple:'メディア'};
 const valueLabels={cash:'資金（ヴァルディス）',revenue:'収入（ヴァルディス）',capital:'資本（ヴァルディス）',population:'人口',workerCount:'労働者総数',prosperity:'繁栄度',loans:'貸付金',influence:'影響力',vp:'VP',billMarkers:'法案マーカー',food:'食料',health:'健康',education:'教育',luxury:'ぜいたく品',freeTradeFood:'自由貿易区の食料',freeTradeLuxury:'自由貿易区のぜいたく品',wealth:'富'};
 function changeText(label,before,after){const d=Number(after)-Number(before);return d>0?`${label}を${d}増やす（${before} → ${after}）`:d<0?`${label}を${-d}減らす（${before} → ${after}）`:null;}
@@ -63,8 +63,8 @@ function renderElection(flow){const el=state.election,p=E.currentElection(state)
 function renderFlow(){const flow=$('flow');
  if(state.phase==='election')return renderElection(flow);
  if(state.phase==='start'){
-  flow.innerHTML='<h2>手番開始の確認</h2><p>援助の獲得と、返済できる貸付金を確認します。</p><p class="source">転記：援助の獲得／貸付金の返済。公式 印刷9〜10ページ。</p><label><input type="checkbox" id="free">開始時の無償行動を確認した</label><button id="next">AIカードを自動で引く</button>';
-  $('next').onclick=()=>{$('free').checked?act({type:'start',deck:state.aiDeck?undefined:E.randomDeck(),note:'開始時の無償行動を確認'}):showError('開始時の無償行動を確認してください');};
+  const p=state.records?WCARecords.startPreview(state.records):{cashBefore:0,loansBefore:0,repay:0,cost:0,cashAfter:0,loansAfter:0,benefits:'unavailable'};flow.innerHTML=`<h2>開始時の無償行動</h2><div class="production-summary"><article><span>援助の獲得</span><strong>${p.benefits==='unavailable'?'対象なし':'現物確認'}</strong><small>${p.benefits==='unavailable'?'国家プレイヤーがいない2人用では使用しません。':'国家の援助エリアにある全ての内容を受け取ります。'}</small></article><article><span>貸付金の返済</span><strong>${p.repay?`${p.repay}枚返済・支払${p.cost}`:'返済なし'}</strong><small>資金 ${p.cashBefore} → ${p.cashAfter} ／ 貸付金 ${p.loansBefore} → ${p.loansAfter}</small></article></div><p class="source">基本ルール v1.1 印刷17ページ「Receive Benefits」「Pay Off Loan」／C&amp;C 印刷9〜10ページ。</p><button id="next">開始時処理を反映してAIカードを引く</button>`;
+  $('next').onclick=()=>act({type:'start',deck:state.aiDeck?undefined:E.randomDeck(),note:`開始時の無償行動を自動処理（貸付金${p.repay}枚返済）`,source:'基本ルール v1.1 印刷17ページ／C&C 印刷9〜10ページ'});
  }else if(state.phase==='card'){
   flow.innerHTML=`<h2>AIカードを自動で引く</h2><p>登録済みの30枚を重複なしでシャッフルしています。残り <strong>${state.aiDeck?.length??30}</strong>枚。</p><button id="next">1枚引いてチェックを始める</button>`;
   $('next').onclick=()=>act({type:'drawCard',deck:state.aiDeck?undefined:E.randomDeck()});

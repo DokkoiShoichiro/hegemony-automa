@@ -36,7 +36,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  assert.equal(await evaluate(`document.querySelector('.treasury strong').textContent`),'120');
  assert.deepEqual(await evaluate(`[...document.querySelectorAll('.product-grid small')].slice(0,2).map(x=>x.textContent)`),['価格 5','価格 10']);
  assert.deepEqual(await evaluate(`[...document.querySelectorAll('.product-grid article>span')].map(x=>x.textContent)`),['医療','教育','影響力']);
- await evaluate(`document.querySelector('#tab-turn').click();document.querySelector('#free').checked=true;document.querySelector('#next').click()`);await sleep(150);
+ await evaluate(`document.querySelector('#tab-turn').click();document.querySelector('#next').click()`);await sleep(150);
  await evaluate(`document.querySelector('#p1').value='2';document.querySelector('#p2').value='7';document.querySelector('#next').click()`);await sleep(150);
  assert.equal(await evaluate(`document.querySelector('.judge-card').classList.contains('ready')`),true);
  await evaluate(`document.querySelector('#next').click()`);await sleep(150);
