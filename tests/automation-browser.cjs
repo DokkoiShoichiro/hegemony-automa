@@ -107,12 +107,13 @@ const assert=require('node:assert/strict');
   const coverage=await page.evaluate(()=>{
    const before=E.copy(state),after=E.copy(state),company=after.records.companies.cc_supermarket_init;
    after.round=before.round+1;after.positions['2']=before.positions['2']==='A'?'B':'A';after.proposals['2']={proposer:'Working',from:before.positions['2'],target:after.positions['2']};
-   after.records.personal.Working.values.vp++;after.records.personal.Working.unions.Food=true;after.records.common.values.influence++;after.records.common.values.workingVotesOutside--;
+   after.records.personal.Working.values.vp++;after.records.personal.Working.values.workerCount++;after.records.personal.Working.unions.Food=true;after.records.common.values.influence++;after.records.common.values.workingVotesOutside--;
    after.records.common.unemployed.Working.Gray++;after.records.common.tokens.demonstration=true;company.machinery=true;company.strike=true;company.slots[0].committed=!company.slots[0].committed;
    after.actions={0:['PB'],1:['AW']};after.card={number:'30'};
    return boardInstructions(before,after,{type:'gameEndApply'}).join('\n');
   });
-  for(const expected of ['ラウンドマーカー','政策2のマーカー','政策2の','法案マーカーを置く','労働者のVP','国家の影響力','投票駒を袋の外から','失業未熟練労働者','Food産業の労働組合','機械化トークン','ストライキトークン','1枠','デモトークン'])assert.match(coverage,new RegExp(expected));
+  for(const expected of ['ラウンドマーカー','政策2のマーカー','政策2の','法案マーカーを置く','労働者のVP','個人ボードの労働者の数を1増やす','国家の影響力','投票駒を袋の外から','失業未熟練労働者','Food産業の労働組合','機械化トークン','ストライキトークン','1枠','デモトークン'])assert.match(coverage,new RegExp(expected));
+  const freeWorkerInstruction=await page.evaluate(()=>{const before=E.copy(state),after=E.copy(state);after.records.personal.Working.values.workerCount++;return freeActionInstructions(before,after,{resource:'health'}).join('\n');});assert.match(freeWorkerInstruction,/個人ボードの労働者の数を1増やす/);
   assert.doesNotMatch(coverage,/優先カード|AIカード/);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   assert.deepEqual(errors,[]);
