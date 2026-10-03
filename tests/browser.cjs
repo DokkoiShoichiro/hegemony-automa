@@ -1,0 +1,30 @@
+const {chromium}=require(process.argv[2]);
+const {pathToFileURL}=require('node:url');
+const path=require('node:path'),assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
+try{const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.goto(pathToFileURL(path.resolve(__dirname,'../dist/index.html')).href);
+await page.locator('#setupWelcomeLater').click();
+await page.locator('#free').check();await page.locator('#next').click();
+await page.locator('#number').fill('14');await page.locator('#bonus').fill('共同農場は設立不可を現物確認');await page.locator('#next').click();
+for(let i=0;i<4;i++){if(i===0){await page.locator('#addMove').click();await page.locator('.movement input').fill('2');}await page.locator('#reason').fill(i===0?'失業者2人を配置可能、AW+2。その他不成立。':'全条件を現物確認、移動なし');await page.locator('#confirmed').check();await page.locator('#next').click();}
+await page.locator('#first').selectOption('yes');await page.locator('#executed').check();await page.locator('#next').click();
+assert.match(await page.locator('#flow').textContent(),/手番終了/);
+await page.locator('#undo').click();assert.match(await page.locator('#flow').textContent(),/実行する行動/);
+await page.locator('#first').selectOption('yes');await page.locator('#executed').check();await page.locator('#bottom').selectOption('floor');await page.locator('#next').click();
+await page.locator('#free').check();await page.locator('#next').click();assert.match(await page.locator('#counter').textContent(),/手番 2/);
+await page.reload();assert.match(await page.locator('#counter').textContent(),/手番 2/);
+assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+assert.match(await page.locator('#leaders').textContent(),/\(BGS\)/);
+assert.equal(await page.locator('.board-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+await page.screenshot({path:path.resolve(__dirname,'../mobile-qa.png'),fullPage:true});
+await page.setViewportSize({width:1280,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+await page.screenshot({path:path.resolve(__dirname,'../desktop-qa.png'),fullPage:true});assert.deepEqual(errors,[]);
+await page.setViewportSize({width:320,height:844});
+await page.evaluate(()=>{state.actions={0:['AW','BGS','STR','DEM','SA','PB']};state.policies={0:['1','2','3','4','5','6','7']};state.aside={actions:{},policies:{}};render();});
+assert.equal(await page.locator('.board-scroll').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+assert.equal(await page.locator('.action .chip').evaluateAll(els=>{const sorted=els.map(e=>({id:e.textContent,y:e.getBoundingClientRect().top})).sort((a,b)=>a.y-b.y);return sorted[0].id==='AW'&&sorted.at(-1).id==='PB';}),true);
+console.log('PASS mobile + desktop: complete turn, undo, reload, no horizontal overflow, no browser errors');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
+

@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.edge-scoring/
+*-qa.png
+setup-*.png
+tmp-*.cjs
+
