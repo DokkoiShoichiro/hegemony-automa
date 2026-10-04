@@ -60,7 +60,7 @@ function render(){
  $('steps').innerHTML=Object.entries(phaseLabels).map(([k,v])=>`<span class="${k===state.phase?'active':''}" ${k===state.phase?'aria-current="step"':''}>${v}</span>`).join('');
  $('facts').value=state.facts;
  $('history').innerHTML=state.log.slice().reverse().map(l=>`<li><strong>${esc(l.type)}</strong> · ${esc(l.note)}${l.event.movements?'<br>'+l.event.movements.map(m=>`${esc(m.card)} +${m.up}${m.applied?'':'（除外中のため無変更）'}`).join(' ／ '):''}${l.event.source?'<br>出典：'+esc(l.event.source):''}</li>`).join('')||'<li>まだ操作はありません。</li>';
- renderFlow();if(state.phase!=='election'&&(state.lastElections?.length||state.lastElection))$('flow').insertAdjacentHTML('afterbegin',(state.lastElections||[state.lastElection]).map(electionResultHtml).join(''));renderEvents();
+ renderFlow();renderEvents();
  WCARecords.render(state, act);
  document.querySelectorAll('#flow > .source').forEach(p=>{const d=document.createElement('details');d.className='rule-detail';const summary=document.createElement('summary');summary.textContent='出典を確認';p.before(d);d.append(summary,p);});
 }

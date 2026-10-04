@@ -109,6 +109,7 @@ const assert=require('node:assert/strict');
   assert.match(policyInstructions,/公立大学|地方テレビ局|公立病院/);
   assert.doesNotMatch(policyInstructions,/投票結果：可決|優先カード|AIカード/);
   await page.locator('#boardInstructionDone').click();
+  assert.equal(await page.locator('.election-result').count(),0);
   const coverage=await page.evaluate(()=>{
    const before=E.copy(state),after=E.copy(state),company=after.records.companies.cc_supermarket_init;
    after.round=before.round+1;after.positions['2']=before.positions['2']==='A'?'B':'A';after.proposals['2']={proposer:'Working',from:before.positions['2'],target:after.positions['2']};

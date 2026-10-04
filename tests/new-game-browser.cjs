@@ -14,7 +14,7 @@ const assert=require('node:assert/strict');
   await page.locator('#personalForm [data-number=cash]').fill('99');
   await page.locator('#personalForm button[type=submit]').click();
   await page.evaluate(()=>{state.lastElection={proposal:{id:'2'},passed:false,totals:{favor:1,against:2},vp:{}};render();});
-  assert.equal(await page.locator('.election-result').count(),1);
+  assert.equal(await page.locator('.election-result').count(),0);
 
   await page.locator('#newGame').click();
   assert.equal(await page.locator('#setupWelcomeTitle').textContent(),'新しいゲームを始めますか？');
@@ -35,4 +35,3 @@ const assert=require('node:assert/strict');
   console.log('PASS new game: open, cancel, replace, clear history/UI/results, mobile width');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
-
