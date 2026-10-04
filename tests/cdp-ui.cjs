@@ -24,7 +24,8 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  assert.equal(await evaluate(`document.querySelector('.policy-card:nth-child(6) p').textContent.includes('食料15（基本10＋関税5）・贅沢品9（基本6＋関税3）')`),true);
  assert.deepEqual(await evaluate(`[...document.querySelectorAll('[data-vote]')].map(x=>[x.value,x.nextElementSibling.textContent])`),[['17','袋の中 8'],['17','袋の中 8'],['17','袋の中 8']]);
  await evaluate(`document.querySelector('#tab-companies').click()`);await sleep(200);
- assert.equal(await evaluate(`document.querySelectorAll('.company-zone').length`),4);
+ assert.equal(await evaluate(`document.querySelectorAll('.company-zone').length`),5);
+ assert.equal(await evaluate(`document.querySelectorAll('.company-market .market-card').length`),0);
  assert.equal(await evaluate(`document.querySelectorAll('.class-capitalist .company-card').length`),4);
  assert.equal(await evaluate(`document.querySelectorAll('.class-working .company-card').length`),0);
  assert.equal(await evaluate(`document.querySelectorAll('.class-state .company-card').length`),3);
@@ -107,4 +108,3 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});fs.writeFileSync(path.resolve(__dirname,'../common-board-mobile-qa.png'),Buffer.from(shot.data,'base64'));
  await send('Browser.close');console.log('PASS boards, automatic policy check, and mobile width');
 })().catch(e=>{console.error(e);process.exitCode=1;});
-
