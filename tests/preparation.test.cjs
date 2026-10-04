@@ -3,7 +3,7 @@ require('../dist/boards.js');
 const E=require('../dist/engine.js'),{test}=require('node:test'),assert=require('node:assert/strict');
 function setup(){return E.reduce(E.initial(),{type:'setup',players:2,immigrant:'',market:[],confirmed:true});}
 function market(s){return WCA_COMPANIES.filter(d=>!d.tags.includes('Initial_Setup')&&['market','unbuilt'].includes(s.records.companies[d.id].status)).slice(0,4).map(d=>d.id);}
-function trade(count=1){return {exportCard:{name:'輸出A',offers:[{resource:'food',quantity:3,revenue:20},{resource:'food',quantity:8,revenue:50}]},businessDeals:Array.from({length:count},(_,i)=>({name:`取引${i+1}`,food:2,luxury:1,cost:20}))};}
+function trade(count=1){return {exportCard:{name:'輸出A',offers:[{resource:'food',quantity:3,revenue:20},{resource:'food',quantity:8,revenue:50}]},businessDeals:Array.from({length:count},(_,i)=>({name:`取引${i+1}`,food:2,luxury:1,cost:20,tariffA:6,tariffB:3}))};}
 
 test('preparation preview follows Immigration and Foreign Trade policies',()=>{const s=setup();let p=WCARecords.preparationPreview(s.records,s.positions);assert.deepEqual({immigration:p.Working.immigrationCards,newWorkers:p.Working.newWorkers,deals:p.Capitalist.dealCards},{immigration:1,newWorkers:3,deals:1});s.positions[7]='C';s.positions[6]='C';p=WCARecords.preparationPreview(s.records,s.positions);assert.deepEqual({immigration:p.Working.immigrationCards,newWorkers:p.Working.newWorkers,deals:p.Capitalist.dealCards},{immigration:2,newWorkers:4,deals:2});});
 
