@@ -46,10 +46,15 @@ const assert=require('node:assert/strict');
   await page.evaluate(()=>{
    state.turn=5;
    state.phase='player';
+   state.records.companies.cc_supermarket_init.slots[0].committed=true;
    state=E.reduce(state,{type:'playerEnd'});
-   state=E.reduce(state,{type:'productionProduce'});
    render();
+   act({type:'productionProduce'});
   });
+  const productionInstructions=await page.locator('#boardInstructionDialog').textContent();
+  assert.match(productionInstructions,/スーパーマーケットの1枠にいる.*労働者の誓約を解く/);
+  assert.doesNotMatch(productionInstructions,/スーパーマーケットの1枠を.*にする/);
+  await page.locator('#boardInstructionDone').click();
   assert.match(await page.locator('#flow').textContent(),/自動購入を反映する/);
   assert.equal(await page.locator('#flow input[type=number]').count(),0);
   const before=await page.evaluate(()=>({food:state.records.personal.Working.values.food,cash:state.records.personal.Working.values.cash}));
