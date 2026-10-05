@@ -71,6 +71,37 @@ function applyAction(records,plan){
  else throw Error('未対応の実行計画です');
  return validate(r);
 }
+// Basic rules: Working Class actions (printed pp.15–17); no AI-card bonuses.
+function applyWorkingBasic(records,plan,positions){
+ const r=clone(records),w=r.personal.Working.values,unionSkill={Food:'Green',Luxury:'Blue',Health:'White',Education:'Orange',Media:'Purple'};
+ check(r.participants.Working==='human'&&r.participants.Middle==='absent','労働者プレイヤーの2人用基本アクションに対応しています');
+ check(plan&&['AW','BGS','STR','DEM','PRESSURE'].includes(plan.action),'基本アクションが不正です');
+ if(plan.action==='AW'){
+  const allocations=plan.allocations||[],unions=plan.unions||[],count=allocations.reduce((n,a)=>n+(a.skills||[]).length,0)+unions.length;
+  check(count>0&&count<=3,'割り当てる労働者は1〜3人です');
+  check(new Set(allocations.map(a=>a.companyId)).size===allocations.length&&new Set(unions).size===unions.length,'配置先が重複しています');
+  const take=skill=>{check(Object.hasOwn(skills,skill)&&r.common.unemployed.Working[skill]>0,'失業労働者が足りません');r.common.unemployed.Working[skill]--;};
+  for(const a of allocations){const c=r.companies[a.companyId],d=c&&effective(companyDef(a.companyId),c);check(c?.status==='built'&&c.slots.length>0&&c.slots.every(x=>x.owner==='empty'),'全スロットが空いている企業を選んでください');check(a.skills.length===c.slots.length,'企業の全スロットを同時に埋めてください');c.slots=a.skills.map((skill,i)=>{check(workerFits(d.workers[i],'Working',skill,d.class),'必要な技能と一致しません');take(skill);return {owner:'Working',skill,committed:true};});c.operating='yes';}
+  for(const industry of unions){check(unionSkill[industry]&&!r.personal.Working.unions[industry],'この労働組合は設立できません');const employed=Object.entries(r.companies).reduce((n,[id,c])=>n+(c.status==='built'&&companyDef(id).industry===industry?c.slots.filter(x=>x.owner==='Working').length:0),0);check(employed>=4,'組合設立には同じ産業で働く労働者4人が必要です');take(unionSkill[industry]);r.personal.Working.unions[industry]=true;w.vp=Number(w.vp||0)+2;}
+ }else if(plan.action==='BGS'){
+  check(['food','health','education','luxury'].includes(plan.resource),'購入する資源が不正です');const purchases=plan.purchases||[];check(purchases.length>0&&new Set(purchases.map(p=>p.source)).size===purchases.length,'購入先を重複させないでください');let total=0,qty=0;
+  for(const p of purchases){check(Number.isSafeInteger(p.qty)&&p.qty>0&&p.qty<=w.population,'各購入先から購入できる数量は人口までです');const key=plan.resource;let price;
+   if(p.source==='Capitalist'){const cap=r.personal.Capitalist.values;check(cap[key]!=null&&cap[key+'Price']!=null&&cap[key]>=p.qty,'資本家の在庫・価格を確認してください');price=cap[key+'Price'];}
+   else if(p.source==='State'){check(['health','education'].includes(key)&&r.common.values[key]!=null&&r.common.values[key]>=p.qty,'国家から購入できる在庫がありません');price=({A:0,B:5,C:10})[positions[key==='health'?4:5]];}
+   else{check(p.source==='Foreign'&&['food','luxury'].includes(key),'この購入先では購入できません');price=key==='food'?({A:20,B:15,C:10})[positions[6]]:({A:12,B:9,C:6})[positions[6]];}
+   total+=price*p.qty;qty+=p.qty;
+   if(p.source==='Capitalist'){r.personal.Capitalist.values[key]-=p.qty;r.personal.Capitalist.values.revenue+=price*p.qty;}
+   else if(p.source==='State'){r.common.values[key]-=p.qty;r.personal.State.values.cash+=price*p.qty;}
+   else r.personal.State.values.cash+=(price-(key==='food'?10:6))*p.qty;
+  }
+  check(w.cash!=null&&w.cash>=total,'購入資金が足りません');w.cash-=total;w[plan.resource]=Number(w[plan.resource]||0)+qty;
+ }else if(plan.action==='STR'){
+  const ids=plan.companyIds||[];check(ids.length>=1&&ids.length<=2&&new Set(ids).size===ids.length,'ストライキは異なる企業1〜2社を選んでください');
+  for(const id of ids){const c=r.companies[id],d=companyDef(id);check(c?.status==='built'&&c.slots.some(x=>x.owner==='Working')&&!c.slots.some(x=>x.committed)&&!c.strike&&['L1','L2'].includes(c.wage)&&(d.class!=='State'||r.participants.State==='human'),'ストライキできない企業です');c.strike=true;c.slots.filter(x=>x.owner==='Working').forEach(x=>x.committed=true);}
+ }else if(plan.action==='DEM'){check(demonstrationStatus(r).eligible,'デモには空きスロットより2人以上多い失業労働者が必要です');check(!r.common.tokens.demonstration,'デモは既に実施中です');r.common.tokens.demonstration=true;}
+ else {check(r.common.values.workingVotesOutside!=null,'投票駒を確認してください');r.common.values.workingVotesOutside=Math.max(0,r.common.values.workingVotesOutside-3);}
+ return validate(r);
+}
 function startPreview(records){const w=records.personal.Working.values,cashBefore=Number(w.cash||0),loansBefore=Number(w.loans||0),repay=Math.min(loansBefore,Math.floor(cashBefore/50)),cost=repay*50;return {cashBefore,loansBefore,repay,cost,cashAfter:cashBefore-cost,loansAfter:loansBefore-repay,benefits:records.participants.State==='human'?'manual':'unavailable'};}
 function applyStart(records){const r=clone(records),p=startPreview(r),w=r.personal.Working.values;w.cash=p.cashAfter;w.loans=p.loansAfter;return validate(r);}
 function payCapitalist(values,amount,preferred='revenue'){let due=Number(amount);check(Number.isSafeInteger(due)&&due>=0,'支払額が不正です');while(Number(values.revenue||0)+Number(values.capital||0)<due){values.capital=Number(values.capital||0)+50;values.loans=Number(values.loans||0)+1;}const first=preferred==='capital'?'capital':'revenue',second=first==='capital'?'revenue':'capital',paid=Math.min(Number(values[first]||0),due);values[first]-=paid;due-=paid;values[second]=Number(values[second]||0)-due;}
@@ -277,6 +308,6 @@ function render(s,act){current=s;commit=act;dirty=false;const r=s.records||blank
  const classPick=document.getElementById('classPick');classPick.onchange=e=>{if(discard()){selectedClass=e.target.value;render(current,commit);}else e.target.value=selectedClass;};const pf=document.getElementById('personalForm');pf.onsubmit=e=>{e.preventDefault();commit({type:'record',section:'personal',id:selectedClass,value:{values:{...(r.personal[selectedClass]?.values||{}),...readNumbers(e.target)},note:e.target.elements.note.value,unions:Object.fromEntries([...e.target.querySelectorAll('[data-union]')].map(el=>[el.dataset.union,el.checked]))},note:classes[selectedClass]+'の個人ボードを記録'});};
  document.querySelectorAll('#companyForm,#commonForm,#stateForm,#personalForm').forEach(form=>form.addEventListener('input',()=>{dirty=true;form.querySelector('.draft-state').textContent='未保存';}));maybeOpenSetupDialog(r);
 }
-root.WCARecords={validate,update,applyAction,startPreview,applyStart,applyCapitalistPurchase,applyCapitalistBuild,applyCapitalistAutomaBuild,applyCapitalistAutomaPolicy,applyCapitalistAutomaSpecial,applyCapitalistWageIncrease,applyCapitalistSell,applyCapitalistAutomaSell,applyCapitalistExport,applyCapitalistAutomaExport,applyCapitalistLobby,applyCapitalistAutomaLobby,capitalistStorageRoom,productionPreview,applyProduction,publicCompanyBonusPreview,applyPublicCompanyBonus,foodNeedPreview,foodNeedPlan,applyFoodNeeds,imfPreview,applyImf,taxPreview,applyTaxes,wealthLevel,workingWorkerCount,workingPopulation,scoringPreview,applyScoring,gameEndPreview,applyGameEnd,preparationPreview,applyPreparation,resolveDemonstration,applyPolicyChange,nextFreeResource,educationCandidates,educationPlan,applyFreeAction,demonstrationStatus,tradeData,openPreparationTrade,render,resetUi,blank,canLeave:discard,createSetup,openCapitalistBuild(){if(discard())openEstablishDialog(current.records,current,true);},openSetupDialog(){if(discard())maybeOpenSetupDialog(current?.records||blank(),true);},specialCompanies};
+root.WCARecords={applyWorkingBasic,validate,update,applyAction,startPreview,applyStart,applyCapitalistPurchase,applyCapitalistBuild,applyCapitalistAutomaBuild,applyCapitalistAutomaPolicy,applyCapitalistAutomaSpecial,applyCapitalistWageIncrease,applyCapitalistSell,applyCapitalistAutomaSell,applyCapitalistExport,applyCapitalistAutomaExport,applyCapitalistLobby,applyCapitalistAutomaLobby,capitalistStorageRoom,productionPreview,applyProduction,publicCompanyBonusPreview,applyPublicCompanyBonus,foodNeedPreview,foodNeedPlan,applyFoodNeeds,imfPreview,applyImf,taxPreview,applyTaxes,wealthLevel,workingWorkerCount,workingPopulation,scoringPreview,applyScoring,gameEndPreview,applyGameEnd,preparationPreview,applyPreparation,resolveDemonstration,applyPolicyChange,nextFreeResource,educationCandidates,educationPlan,applyFreeAction,demonstrationStatus,tradeData,openPreparationTrade,render,resetUi,blank,canLeave:discard,createSetup,openCapitalistBuild(){if(discard())openEstablishDialog(current.records,current,true);},openSetupDialog(){if(discard())maybeOpenSetupDialog(current?.records||blank(),true);},specialCompanies};
 if(typeof window!=='undefined')window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 })(globalThis);
