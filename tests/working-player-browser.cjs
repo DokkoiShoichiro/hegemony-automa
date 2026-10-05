@@ -5,9 +5,14 @@ const {pathToFileURL}=require('url'),path=require('path'),assert=require('node:a
  await page.goto(process.env.APP_URL||pathToFileURL(path.resolve(__dirname,'../dist/index.html')).href);
  await page.evaluate(()=>{document.getElementById('setupWelcome')?.remove();state=E.reduce(E.initial(),{type:'setup',players:2,automaClass:'Capitalist',confirmed:true,market:[]});render();});
  assert.equal(await page.locator('#workingAssign').count(),1);
- await page.getByText('商品・サービスの購入',{exact:true}).click();await page.locator('#workingResource').selectOption('health');await page.locator('[data-working-source="State"]').fill('2');assert.match(await page.locator('#workingCost').textContent(),/支払合計 10/);
- await page.locator('#workingBuy').click();assert.equal(await page.evaluate(()=>state.records.personal.Working.values.health),2);assert.equal(await page.locator('#workingBuy').count(),0);assert.ok(await page.locator('#boardInstructionDialog').isVisible());
+ await page.getByText('商品・サービスの購入',{exact:true}).click();await page.locator('#workingResource').selectOption('health');await page.locator('[data-working-source="State"]').fill('3');assert.match(await page.locator('#workingCost').textContent(),/支払合計 15/);
+ await page.locator('#workingBuy').click();assert.equal(await page.evaluate(()=>state.records.personal.Working.values.health),3);assert.equal(await page.locator('#workingBuy').count(),0);assert.ok(await page.locator('#boardInstructionDialog').isVisible());
+ await page.evaluate(()=>document.getElementById('boardInstructionDialog').close());
+ assert.equal(await page.locator('#workingUseHealth').isEnabled(),true);await page.locator('#workingUseHealth').click();assert.equal(await page.evaluate(()=>state.records.personal.Working.values.health),0);assert.equal(await page.evaluate(()=>state.records.personal.Working.values.vp),3);assert.equal(await page.locator('#workingUseHealth').isDisabled(),true);
+ await page.evaluate(()=>{document.getElementById('boardInstructionDialog').close();state.records.personal.Working.values.education=state.records.personal.Working.values.population;render();});
+ await page.locator('#workingFreeActions summary').click();await page.locator('#workingEducationWorker').selectOption('u:Gray');await page.locator('#workingEducationSkill').selectOption('White');await page.locator('#workingUseEducation').click();assert.equal(await page.evaluate(()=>state.records.common.unemployed.Working.White),1);assert.equal(await page.evaluate(()=>state.records.personal.Working.values.education),0);assert.equal(await page.evaluate(()=>state.workingBasicUsed),true);
+
  await page.evaluate(()=>{document.getElementById('boardInstructionDialog')?.close();state=E.reduce(E.initial(),{type:'setup',players:2,automaClass:'Capitalist',confirmed:true,market:[]});render();});
  await page.getByText('法案提議',{exact:true}).click();await page.locator('#workingPolicy').selectOption('1');assert.deepEqual(await page.locator('#workingTarget option').allTextContents(),['B']);await page.locator('#workingPropose').click();assert.equal(await page.evaluate(()=>state.proposals['1'].proposer),'Working');
- assert.deepEqual(errors,[]);console.log('PASS Working player mobile UI: purchase, action limit, instructions, adjacent proposal');
+ assert.deepEqual(errors,[]);console.log('PASS Working player mobile UI: purchase, healthcare and education free actions, action limit, instructions, adjacent proposal');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

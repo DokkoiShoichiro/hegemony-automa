@@ -177,7 +177,7 @@ function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'';
   }
   if(e.first==='no'&&selected!=='PRESSURE')compress(s,'actions');
   if(immediate.length)beginElection(s,immediate,'immediate','end');else s.phase='end';note=`${selected} 実行。${note}`;break;}
- case 'freeAction':requireThat(s.phase==='end'&&s.records,'終了時の無償行動ではありません');s.records=root.WCARecords.applyFreeAction(s.records,e.resource,e.upgrade);note=`${e.resource}を使用して繁栄度を上昇`;break;
+ case 'freeAction':requireThat(s.records&&(s.phase==='end'||s.phase==='player'&&s.automaClass==='Capitalist'&&s.records.participants.Working==='human'),'労働者のフリーアクションを実行できる手番ではありません');s.records=root.WCARecords.applyFreeAction(s.records,e.resource,e.upgrade);note=`${e.resource}を使用して繁栄度を上昇`;break;
  case 'end':requireThat(s.phase==='end','終了処理ではありません');requireThat(!s.records||!root.WCARecords.nextFreeResource(s.records),'終了時の資源使用を完了してください');s.card=null;s.index=0;if(s.automaMode==='Both'){activateAutoma(s,'Capitalist');s.phase='start';note='労働者オートマの手番を終了し、資本家オートマへ';}else{s.phase='player';note='労働者オートマの手番を終了';}break;
  case 'workingBasic':{
   requireThat(s.phase==='player'&&s.automaClass==='Capitalist'&&s.records?.participants.Working==='human','労働者プレイヤーの手番ではありません');requireThat(!s.workingBasicUsed,'この手番の基本アクションは実行済みです');
