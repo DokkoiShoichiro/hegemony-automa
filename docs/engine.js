@@ -86,6 +86,7 @@ function influencePlan(s,id,sides,cubes){const values=s.records.personal[id]?.va
  const need=needed(side);if(ownSide<need)return {type:'none',spend:0,cards:0,reason:'自陣営の影響力を全て使っても逆転不能'};if(!others)return {type:'necessary',spend:Math.min(available,need),cards:0,reason:'相手陣営に影響力がないため必要数を使用'};if(ownSide===need)return {type:'drawAll',spend:0,cards:1,reason:'自陣営が逆転にちょうど必要な影響力を所持'};const spend=Math.min(available,need),cards=Math.min(Math.max(0,available-spend),others);return cards?{type:'necessaryDraw',spend,cards,reason:'必要数を使用後、相手陣営の影響力数だけカードを引く'}:{type:'necessary',spend,cards:0,reason:'必要数を使用し、残りの影響力なし'};
 }
 function validate(s){
+ if(s.playerCards!==undefined){requireThat(root.PlayerCards,'プレイヤーカードモジュールが必要です');root.PlayerCards.validate(s);}
  requireThat(s?.version===1,'保存形式に対応していません');
  if(s.records!==undefined){requireThat(root.WCARecords,'盤面記録モジュールが必要です');root.WCARecords.validate(s.records);}
  requireThat(Number.isInteger(s.round)&&s.round>=1&&s.round<=5,'ラウンドが不正です');
@@ -111,7 +112,10 @@ function validate(s){
  if(['checks','action','end'].includes(s.phase))requireThat(s.card&&s.card.order?.length===4&&new Set(s.card.order).size===4&&s.card.order.every(x=>checkIds(s).includes(x)),'AIカードが不正です');
  return s;
 }
-function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'';
+function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'',played=null;
+ if(s.playerCards&&root.PlayerCards.mainEvents.has(e.type))played=root.PlayerCards.consume(s,e);
+ if(s.playerCards&&e.type==='playerEnd'){requireThat(s.playerCards.used,'カード効果か基本アクションを1つ実行してください');s.playerCards.used=false;}
+ if(s.playerCards&&e.type==='playerWage')requireThat(s.phase==='player'&&root.PlayerCards.activeOwner(s)==='Capitalist','資本家プレイヤーの手番ではありません');
  switch(e.type){
  case 'setup':{
   requireThat(e.confirmed===true,'初期状態への置き換えを確認してください');
@@ -119,6 +123,7 @@ function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'';
   s={...base,automaMode:both?'Both':'Single',records:prepared,positions:{1:'C',2:'B',3:'A',4:'B',5:'C',6:'B',7:'B'},aiDeck:validDeck(e.deck)?e.deck.map(String):(automaClass==='Capitalist'?Object.keys(root.CCAJudge?.CARD_DATA||{}):deckNumbers()),aiDiscard:[],tradeDecks:tradeState.tradeDecks,...(automaticImmigration?{immigrationDeck:migrationState.immigrationDeck}:{})};
   if(both){const working={...initial(),aiDeck:validDeck(e.workingDeck)?e.workingDeck.map(String):deckNumbers(),aiDiscard:[]},capitalist={...capitalistInitial(),aiDeck:validDeck(e.capitalistDeck)?e.capitalistDeck.map(String):Object.keys(root.CCAJudge?.CARD_DATA||{}),aiDiscard:[]};s.automaClass='Working';s.automaStates={Working:automaSnapshot(working),Capitalist:automaSnapshot(capitalist)};for(const key of automaKeys)s[key]=copy(s.automaStates.Working[key]);}
   else s.phase=roundOpeningPhase(s);
+  if(e.managePlayerCards===true){requireThat(root.PlayerCards,'プレイヤーカードモジュールが必要です');s.playerCards=root.PlayerCards.create(prepared,e.playerCardDecks);}
   note=`2人ゲームの初期状態を適用（${both?'労働者オートマ対資本家オートマ':automaClass==='Capitalist'?'資本家':'労働者'}）`;break;
  }
  case 'record':
@@ -188,16 +193,18 @@ function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'';
   if(e.immediate){requireThat(w.influence>0,'即時投票に必要な影響力がありません');w.influence--;beginElection(s,[{id,proposer:'Working',from,target,immediate:true}],'immediate','player');}
   else {requireThat(w.billMarkers>0,'法案マーカーがありません');w.billMarkers--;s.proposals[id]={proposer:'Working',from,target,round:s.round,turn:s.turn};aside(s,'policies',id,'bill:Working');}
   s.workingBasicUsed=true;note=`労働者が政策${id}を${target}へ提議`;break;}
+ case 'playerCardEffect':requireThat(played,'アプリ内の手札管理が必要です');root.PlayerCards.applyEffect(s,played.owner,played.definition,e.plan);note=`${played.definition.name}の効果を実行`;break;
  case 'playerPolicy':{
   requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');const id=e.id,current=s.positions[id],target=e.position,cap=s.records.personal.Capitalist.values;requireThat(/^[1-7]$/.test(id)&&!s.proposals[id]&&!String(s.aside.policies[id]||'').startsWith('bill:'),'この政策には提議できません');requireThat(['A','B','C'].includes(target)&&target!==current,'現在と異なる提議先を選んでください');
+  if(s.playerCards)requireThat(Math.abs(target.charCodeAt(0)-current.charCodeAt(0))===1,'基本アクションでは隣接する区画へ提議してください');
   if(e.immediate){requireThat(cap.influence>0,'即時投票に必要な影響力がありません');cap.influence--;beginElection(s,[{id,proposer:'Capitalist',from:current,target,immediate:true}],'immediate','player');note=`資本家が政策${id}を${target}へ提議し即時投票を開始`;
   }else{requireThat(cap.billMarkers>0,'法案マーカーがありません');cap.billMarkers--;s.proposals[id]={proposer:'Capitalist',from:current,target,round:s.round,turn:s.turn};aside(s,'policies',id,'bill:Capitalist');note=`資本家が政策${id}を${target}へ提議`;}
   break;}
- case 'playerPurchase':{requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');const result=root.WCARecords.applyCapitalistPurchase(s.records,e.plan,s.positions['6']);s.records=result.records;note=`資本家が${result.food?`食料${result.food}`:''}${result.food&&result.luxury?'・':''}${result.luxury?`ぜいたく品${result.luxury}`:''}を購入（本体${result.base}・関税${result.tariff}・合計${result.total}）`;break;}
+ case 'playerPurchase':{requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');if(s.playerCards)requireThat(e.plan?.source==='BusinessDeal','資本家の基本アクションでは商取引カードを選んでください');const result=root.WCARecords.applyCapitalistPurchase(s.records,e.plan,s.positions['6']);s.records=result.records;note=`資本家が${result.food?`食料${result.food}`:''}${result.food&&result.luxury?'・':''}${result.luxury?`ぜいたく品${result.luxury}`:''}を購入（本体${result.base}・関税${result.tariff}・合計${result.total}）`;break;}
  case 'playerBuild':requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');s.records=root.WCARecords.applyCapitalistBuild(s.records,e.id,e.value,e.common);note=`資本家が${e.id}を設立`;break;
  case 'playerWage':{requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');const result=root.WCARecords.applyCapitalistWageIncrease(s.records,e.id,e.wage);s.records=result.records;note=`資本家が${e.id}の賃金を${e.wage}へ上げ、労働者${result.committed}人を誓約`;break;}
  case 'playerSell':requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');s.records=root.WCARecords.applyCapitalistSell(s.records,e.id);note='資本家が企業を売却';break;
- case 'playerExport':requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');s.records=root.WCARecords.applyCapitalistExport(s.records,e.resource,e.qty,e.revenue);note=`資本家が海外市場へ${e.qty}個を売却し${e.revenue}を獲得`;break;
+ case 'playerExport':{requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');if(s.playerCards){const indices=e.transactions,offers=s.records.trade.exportCard.offers;requireThat(Array.isArray(indices)&&indices.length>0&&new Set(indices).size===indices.length,'輸出カードの取引を選んでください');for(const index of indices){requireThat(Number.isSafeInteger(index)&&offers[index],'輸出カードの取引が不正です');const o=offers[index];s.records=root.WCARecords.applyCapitalistExport(s.records,o.resource,o.quantity,o.revenue);}note=`資本家が海外市場へ${indices.length}件の取引を実行`;}else{s.records=root.WCARecords.applyCapitalistExport(s.records,e.resource,e.qty,e.revenue);note=`資本家が海外市場へ${e.qty}個を売却し${e.revenue}を獲得`;}break;}
  case 'playerLobby':requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');s.records=root.WCARecords.applyCapitalistLobby(s.records);note='資本家がロビー（30支払い・影響力3獲得）';break;
  case 'playerPressure':requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');s.records.common.values.capitalistVotesOutside=Math.max(0,Number(s.records.common.values.capitalistVotesOutside||0)-3);note='資本家が政治的圧力（投票駒3個を袋へ）';break;
  case 'playerEnd':s.workingBasicUsed=false;requireThat(s.phase==='player','プレイヤーの手番ではありません');if(s.automaClass==='Capitalist'){s.phase='start';note='労働者の手番を終了し、資本家オートマへ';}else if(s.turn<5){s.turn++;s.phase='start';note='資本家の手番を終了';}else{enterProduction(s);note=`第5手番を終了し、生産フェイズへ${s.production.wageDraws.length?`（資本家オートマのストライキ企業${s.production.wageDraws.length}社を判定）`:''}`;}break;
@@ -235,10 +242,11 @@ function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'';
   requireThat(!s.records&&['start','roundEnd'].includes(s.phase)&&s.round<5,'盤面記録があるゲームでは準備フェイズを完了してください');s.round++;s.turn=1;s.phase='start';if(s.aside.actions.STR==='strikeTokens')place(s,'actions','STR',0);for(let i=1;i<=7;i++){const id=String(i);if(s.round===5&&i===7){aside(s,'policies',id,'finalRound');continue;}if(!(id in s.aside.policies))continue;const desired=priorityDesired(s,id),d=Math.abs(s.positions[id].charCodeAt(0)-desired.charCodeAt(0));if(d)place(s,'policies',id,d-1);}note=`ラウンド${s.round}へ`;break;
  case 'preparationTrade':{requireThat(s.phase==='preparation'&&s.round<5&&s.records,'準備フェイズではありません');const count=({A:0,B:1,C:2})[s.positions[6]];s.preparationTrade=root.WCARecords.tradeData(e.value,count,true);note=`輸出カードと商取引カード${count}枚を記録`;break;}
  case 'preparationApply':
-  requireThat(['preparation','roundEnd'].includes(s.phase)&&s.round<5&&s.records,'準備フェイズではありません');requireThat(!Object.keys(s.proposals).length,'投票待ちの法案を解決してください');requireThat(e.confirmed===true,'実物カードと全政策の現在位置を確認してください');{const immigrationCount=({A:0,B:1,C:2})[s.positions[7]],dealCount=({A:0,B:1,C:2})[s.positions[6]],automaticImmigration=!!s.immigrationDeck||!Array.isArray(e.plan?.immigration),immigrationCards=automaticImmigration?drawImmigrationCards(s,immigrationCount):null,immigration=immigrationCards?immigrationCards.map(card=>card.Working):e.plan?.immigration||[],trade=s.preparationTrade||drawTradeCards(s,dealCount),result=root.WCARecords.applyPreparation(s.records,s.positions,{...(e.plan||{}),immigration,immigrationCards,trade});s.records=result.records;s.lastPreparation={...result.preview,market:result.market,immigration:result.immigration,immigrationCards:result.immigrationCards,trade:copy(trade)};}s.round++;s.turn=1;s.phase=roundOpeningPhase(s);delete s.production;delete s.preparationTrade;
+  requireThat(['preparation','roundEnd'].includes(s.phase)&&s.round<5&&s.records,'準備フェイズではありません');requireThat(!Object.keys(s.proposals).length,'投票待ちの法案を解決してください');requireThat(e.confirmed===true,'実物カードと全政策の現在位置を確認してください');{const immigrationCount=({A:0,B:1,C:2})[s.positions[7]],dealCount=({A:0,B:1,C:2})[s.positions[6]],automaticImmigration=!!s.immigrationDeck||!Array.isArray(e.plan?.immigration),immigrationCards=automaticImmigration?drawImmigrationCards(s,immigrationCount):null,immigration=immigrationCards?immigrationCards.map(card=>card.Working):e.plan?.immigration||[],trade=s.preparationTrade||drawTradeCards(s,dealCount),result=root.WCARecords.applyPreparation(s.records,s.positions,{...(e.plan||{}),immigration,immigrationCards,trade});s.records=result.records;s.lastPreparation={...result.preview,market:result.market,immigration:result.immigration,immigrationCards:result.immigrationCards,trade:copy(trade)};}if(s.playerCards)root.PlayerCards.replenish(s);s.round++;s.turn=1;s.phase=roundOpeningPhase(s);delete s.production;delete s.preparationTrade;
   {const restore=()=>{if(s.aside.actions.STR==='strikeTokens')place(s,'actions','STR',0);for(let i=1;i<=7;i++){const id=String(i);if(s.round===5&&i===7){aside(s,'policies',id,'finalRound');continue;}if(!(id in s.aside.policies))continue;const desired=priorityDesired(s,id),d=Math.abs(s.positions[id].charCodeAt(0)-desired.charCodeAt(0));if(d)place(s,'policies',id,d-1);}};if(s.automaMode==='Both'){for(const owner of ['Working','Capitalist'])withAutoma(s,owner,restore);activateAutoma(s,'Working');}else restore();}note=`ラウンド${s.round}の準備を反映（利息・繁栄度・新規労働者・市場・カード・優先順位）`;break;
  default:throw Error('不明な操作です');
  }
+ if(played){if(played.owner==='Working')s.workingBasicUsed=true;note+=`（${played.definition.name}を手札から捨て札へ）`;}
  s.log.push({at:new Date().toISOString(),turn:s.turn,type:e.type,note,event:copy(e)});storeAutoma(s);validate(s);return s;
 }
 const api={ACTIONS,CHECKS,initial,capitalistInitial,actionIds,checkIds,copy,rows,rank,locate,move,compress,validate,reduce,refillPlan,emergencyRefillPlan,bagCount,automaStance,voters,voteTotals,currentElection,randomDeck,IMMIGRATION_CARD_DATA,validImmigrationDeck,randomImmigrationDeck,drawImmigrationCards,EXPORT_CARD_DATA,BUSINESS_DEAL_DATA,validTradeDecks,randomTradeDecks,drawTradeCards};root.WCA=api;if(typeof module!=='undefined')module.exports=api;
