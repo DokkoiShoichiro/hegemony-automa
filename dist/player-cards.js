@@ -13,6 +13,7 @@ const effects={
  wc_proletarians_unite:'populationVotes',wc_immigration:'immigration',wc_cooperative_farm:'farm',
  wc_unemployment_benefits:'unemploymentIncome',wc_supplemental_income_program:'employmentIncome',
  wc_specialization:'specialization',wc_signing_bonus:'signingBonus',cc_industrialization:'industrialization',
+ wc_public_sector_overtime:'publicOvertime',cc_extra_shift:'extraShift',
  cc_endorse_political_campaign:'campaign',cc_buy_private_island:'island',cc_offshore_companies:'offshore',
  cc_trade_protectionism_lobby:'industryVotes',cc_business_grants:'grants',cc_health_crisis:'sellHealth',
  cc_higher_education_program:'sellEducation',cc_bid_rigging:'sellLuxury',cc_exit_strategy:'exit'
@@ -188,10 +189,25 @@ function purchase(r,s,resource,source,qty,discount=false,subsidy=false){
 function applyEffect(s,owner,c,plan={}){
  const a=availability(s,owner,c.id);check(a.ready,a.reason);
  check(s.records.participants.Middle==='absent'&&s.records.participants.State==='absent','この段階のプレイヤーカード効果は2人戦に対応しています');
- let r=copy(s.records);const w=r.personal.Working.values,cap=r.personal.Capitalist.values,state=r.personal.State.values;
+ let production=null,r=copy(s.records);const w=r.personal.Working.values,cap=r.personal.Capitalist.values,state=r.personal.State.values;
  const bases={unemployed_workers:unemployed(r),assigned_workers:employed(r),companies_owned:built(r,'Capitalist').length};
  const addVotes=(who,n)=>{const key=voteKeys[who];r.common.values[key]=Math.max(0,known(r.common.values[key],'袋の外の投票駒')-n);};
  switch(a.effect){
+ case 'extraShift':case 'publicOvertime':{
+  const d=def(plan.companyId),company=r.companies[plan.companyId],publicCard=a.effect==='publicOvertime';
+  check(d?.class===(publicCard?'State':'Capitalist')&&company?.status==='built'&&company.operating==='yes','稼働中の'+(publicCard?'公共':'自分の')+'企業を選んでください');
+  check(publicCard||d.workers.length>0&&!d.tags?.includes('Automated'),'追加シフトでは自動化企業を選べません');
+  check(company.slots.length>0&&company.slots.every(slot=>slot.owner==='Working'),'配置された労働者を確認してください');
+  check(!company.strike||company.wage==='L3','ストライキ中の企業は生産できません');
+  check(Number.isSafeInteger(d.wages?.[company.wage]),'賃金を確認してください');
+  known(w.cash,'労働者の資金');if(publicCard){known(state.cash,'国庫');known(state.loans,'国家の貸付金');}else{known(cap.revenue,'収入');known(cap.capital,'資本');known(cap.loans,'資本家の貸付金');}
+  const key=d.production.resource.toLowerCase();known(publicCard?r.common.values[key]:cap[key],'生産先の在庫');
+  if(!publicCard){known(cap[key+'Storage'],'倉庫');if(['food','luxury'].includes(key))known(cap[key==='food'?'freeTradeFood':'freeTradeLuxury'],'自由貿易エリアの在庫');}
+  const result=root.WCARecords.applyCompanyProduction(r,d.id);r=result.records;
+  production={companyId:d.id,resource:key,amount:result.preview.amount,wage:result.preview.wage,storage:result.storage};
+  if(publicCard&&plan.qty!==undefined)purchase(r,s,key,'State',plan.qty);
+  break;
+ }
  case 'housing':check(!plan.target||plan.target==='Capitalist','2人戦では資本家への支払いを選んでください');payWorking(w,20);cap.revenue=known(cap.revenue,'収入')+20;w.vp=known(w.vp,'VP')+5;break;
  case 'discountHealth':purchase(r,s,'health','State',plan.qty,true);break;
  case 'discountEducation':purchase(r,s,'education','State',plan.qty,true);break;
@@ -259,7 +275,7 @@ function applyEffect(s,owner,c,plan={}){
  // games the State is absent, so we preserve the bonus but do not apply it.
  const legitimacy=bonusAmount(c.bonus,bases);
  s.records=root.WCARecords.validate(r);
- s.lastPlayerCard={id:c.id,owner,legitimacy,legitimacyApplied:false,source:'ユーザー提供 v6 JSON／基本ルール v1.2：正当性は国家参加時のみ'};
+ s.lastPlayerCard={id:c.id,owner,production,legitimacy,legitimacyApplied:false,source:'ユーザー提供 v6 JSON／基本ルール v1.2：正当性は国家参加時のみ'};
  return s;
 }
 const api={catalog,card,definition,allCopies,shuffled,create,validate,activeOwner,mainEvents,consume,replenish,availability,bonusAmount,applyEffect,effects,companyDefinition,workerChoices};
