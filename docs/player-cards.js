@@ -16,6 +16,8 @@ const effects={
  wc_public_sector_overtime:'publicOvertime',cc_extra_shift:'extraShift',
  wc_general_strike:'generalStrike',cc_business_expansion:'businessExpansion',
  cc_investment_opportunities:'investment',cc_technological_progress:'technology',
+ wc_labor_market_deregulation:'deregulation',cc_unemployment_initiative_program:'employmentGrant',
+ cc_foreign_recruitment:'foreignRecruitment',cc_competitive_wages:'competitiveWages',
  cc_endorse_political_campaign:'campaign',cc_buy_private_island:'island',cc_offshore_companies:'offshore',
  cc_trade_protectionism_lobby:'industryVotes',cc_business_grants:'grants',cc_health_crisis:'sellHealth',
  cc_higher_education_program:'sellEducation',cc_bid_rigging:'sellLuxury',cc_exit_strategy:'exit'
@@ -115,7 +117,7 @@ function assignWorkers(records,plan,limit,unemployedOnly){
   if(parts.length===2&&parts[0]==='u'){
    skill=parts[1];check(skills.includes(skill)&&Number(r.common.unemployed.Working[skill])>0,'失業労働者が足りません');r.common.unemployed.Working[skill]--;
   }else{
-   check(!unemployedOnly,'雇用ボーナスで配置できるのは失業労働者だけです');
+   check(!unemployedOnly,'この配置で使えるのは失業労働者だけです');
    check(parts.length===3&&parts[0]==='c'&&/^\d+$/.test(parts[2]),'移動する労働者が不正です');
    const id=parts[1],index=Number(parts[2]),c=r.companies[id],slot=c?.slots[index];
    check(c?.status==='built'&&slot?.owner==='Working'&&!slot.committed,'誓約中でない自分の労働者を選んでください');
@@ -156,8 +158,18 @@ function assignWorkers(records,plan,limit,unemployedOnly){
  }
  const employedIn=industry=>Object.entries(r.companies).reduce((n,[id,c])=>n+(c.status==='built'&&def(id).industry===industry?c.slots.filter(x=>x.owner==='Working').length:0),0);
  for(const u of unionMoves){check(employedIn(u.industry)>=4,'組合設立には同じ産業で働く労働者4人が必要です');r.personal.Working.unions[u.industry]=true;r.personal.Working.values.vp=known(r.personal.Working.values.vp,'VP')+2;}
- for(const [industry,active] of Object.entries(r.personal.Working.unions))if(active&&employedIn(industry)<4){r.personal.Working.unions[industry]=false;r.common.unemployed.Working[unionSkills[industry]]++;}
+ reconcileUnions(r);
  return root.WCARecords.validate(r);
+}
+function reconcileUnions(r){
+ for(const [industry,active] of Object.entries(r.personal.Working.unions))if(active){const count=Object.entries(r.companies).reduce((n,[id,c])=>n+(c.status==='built'&&def(id)?.industry===industry?c.slots.filter(slot=>slot.owner==='Working').length:0),0);if(count<4){r.personal.Working.unions[industry]=false;r.common.unemployed.Working[unionSkills[industry]]=known(r.common.unemployed.Working[unionSkills[industry]],'失業労働者')+1;}}
+}
+function stoppedCompany(r,id){const c=r.companies[id],d=companyDefinition(r,id);check(d?.class==='Capitalist'&&c?.status==='built'&&c.operating==='no'&&d.workers.length>0&&c.slots.every(slot=>slot.owner==='empty'),'全枠が空いている自分の非稼働企業を選んでください');return d;}
+function publicTransferSlots(r,sourceId,targetId){
+ const source=r.companies[sourceId],target=companyDefinition(r,targetId);
+ if(def(sourceId)?.class!=='State'||source?.status!=='built'||source.operating!=='yes'||!target||source.slots.length!==target.workers.length||!source.slots.every((slot,index)=>slot.owner==='Working'&&(companyDefinition(r,sourceId).workers[index].type!=='Skilled'||companyDefinition(r,sourceId).workers[index].color===slot.skill)))return null;
+ const match=(index,used,slots)=>{if(index===target.workers.length)return slots;const req=target.workers[index];for(let i=0;i<source.slots.length;i++)if(!used.includes(i)&&req.type!=='MiddleClass'&&(req.type!=='Skilled'||req.color===source.slots[i].skill)){const result=match(index+1,[...used,i],[...slots,{...source.slots[i],committed:true}]);if(result)return result;}return null;};
+ return match(0,[],[]);
 }
 function buildCompany(records,positions,plan,half=false,investmentMode=null){
  records=copy(records);
@@ -199,6 +211,27 @@ function applyEffect(s,owner,c,plan={}){
  const bases={unemployed_workers:unemployed(r),assigned_workers:employed(r),companies_owned:built(r,'Capitalist').length};
  const addVotes=(who,n)=>{const key=voteKeys[who];r.common.values[key]=Math.max(0,known(r.common.values[key],'袋の外の投票駒')-n);};
  switch(a.effect){
+ case 'deregulation':r=assignWorkers(r,plan,root.WCARecords.workingWorkerCount(r),s.positions[2]!=='C');break;
+ case 'employmentGrant':{
+  const d=stoppedCompany(r,plan.companyId);
+  check(Number.isSafeInteger(d.wages?.[r.companies[d.id].wage]),'配置先の賃金を確認してください');
+  check(Array.isArray(plan.workers)&&plan.workers.length===d.workers.length,'企業の全スロットへ配置する失業労働者を選んでください');
+  r=assignWorkers(r,{allocations:[{companyId:d.id,slots:plan.workers.map((skill,index)=>({index,worker:`u:${skill}`}))}]},d.workers.length,true);
+  const amount=d.workers.length*5;payState(r,amount);r.personal.Capitalist.values.revenue=known(r.personal.Capitalist.values.revenue,'収入')+amount;break;
+ }
+ case 'foreignRecruitment':{
+  const d=stoppedCompany(r,plan.companyId);
+  check(Number.isSafeInteger(d.wages?.[r.companies[d.id].wage]),'配置先の賃金を確認してください');
+  check(root.WCARecords.workingWorkerCount(r)+d.workers.length<=48,'労働者サプライの残り人数が足りません');
+  payCap(cap,10);const company=r.companies[d.id];company.slots=d.workers.map(req=>({owner:'Working',skill:req.type==='Skilled'?req.color:'Gray',committed:true}));company.operating='yes';break;
+ }
+ case 'competitiveWages':{
+  const d=stoppedCompany(r,plan.companyId),slots=publicTransferSlots(r,plan.sourceId,d.id);
+  check(slots,'必要人数と技能が一致する稼働中の公共企業を選んでください');
+  const source=r.companies[plan.sourceId],sourceDef=companyDefinition(r,plan.sourceId),target=r.companies[d.id];
+  source.slots=sourceDef.workers.map(req=>({owner:'empty',skill:req.color,committed:false}));source.operating='no';source.strike=false;
+  target.wage='L3';target.slots=slots;target.operating='yes';reconcileUnions(r);break;
+ }
  case 'investment':{
   check(['discount','search'].includes(plan.mode),'市場の割引設立か企業山札の検索を選んでください');
   r=buildCompany(r,s.positions,plan,false,plan.mode);
@@ -309,7 +342,7 @@ function applyEffect(s,owner,c,plan={}){
  }
  default:throw Error('このカード効果は未対応です');
  }
- if(['specialization','signingBonus','industrialization','businessExpansion','investment'].includes(a.effect)&&r.common.tokens.demonstration&&!root.WCARecords.demonstrationStatus(r).eligible)r.common.tokens.demonstration=false;
+ if(['specialization','signingBonus','industrialization','businessExpansion','investment','deregulation','employmentGrant','foreignRecruitment','competitiveWages'].includes(a.effect)&&r.common.tokens.demonstration&&!root.WCARecords.demonstrationStatus(r).eligible)r.common.tokens.demonstration=false;
  // Legitimacy changes belong to the State player's tracks. In two-player
  // games the State is absent, so we preserve the bonus but do not apply it.
  const legitimacy=bonusAmount(c.bonus,bases);
@@ -317,6 +350,6 @@ function applyEffect(s,owner,c,plan={}){
  s.lastPlayerCard={id:c.id,owner,production,machinery,companySearch,legitimacy,legitimacyApplied:false,source:'ユーザー提供 v6 JSON／基本ルール v1.2：正当性は国家参加時のみ'};
  return s;
 }
-const api={catalog,card,definition,allCopies,shuffled,create,validate,activeOwner,mainEvents,consume,replenish,availability,bonusAmount,applyEffect,effects,companyDefinition,workerChoices};
+const api={catalog,card,definition,allCopies,shuffled,create,validate,activeOwner,mainEvents,consume,replenish,availability,bonusAmount,applyEffect,effects,companyDefinition,workerChoices,publicTransferSlots};
 root.PlayerCards=api;if(typeof module!=='undefined')module.exports=api;
 })(globalThis);
