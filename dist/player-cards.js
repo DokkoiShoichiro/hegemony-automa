@@ -8,6 +8,10 @@ const skills=['Gray','Green','Blue','White','Orange','Purple'];
 const copy=x=>JSON.parse(JSON.stringify(x));
 const check=(ok,message)=>{if(!ok)throw Error(message);};
 const effects={
+ wc_need_for_change:'politicsDouble',cc_push_political_agenda:'politicsDouble',
+ wc_fake_news:'politicsFake',cc_fake_news:'politicsFake',wc_interest_groups:'politicsInterest',cc_interest_groups:'politicsInterest',
+ wc_workers_movement:'politicsMovement',wc_healthcare_movement:'politicsMovement',wc_student_movement:'politicsMovement',wc_immigration_reform:'politicsMovement',cc_tap_into_new_markets:'politicsMovement',cc_taxed_enough_already:'politicsMovement',
+ wc_radical_reforms:'politicsRadical',cc_radical_reforms:'politicsRadical',wc_public_opinion_polling:'politicsPolling',cc_public_opinion_polling:'politicsPolling',
  wc_affordable_housing:'housing',wc_healthcare_benefits:'discountHealth',wc_state_scholarship:'discountEducation',
  wc_highlight_social_issues:'influence',wc_boost_domestic_tourism:'tourism',wc_workplace_accident:'accident',
  wc_proletarians_unite:'populationVotes',wc_immigration:'immigration',wc_cooperative_farm:'farm',
@@ -43,7 +47,7 @@ function create(records,orders={}){
 function validate(s){
  const p=s.playerCards;check(!s.pendingPlayerCard||p,'継続中のカードには手札管理が必要です');if(p===undefined)return;
  check(p?.version===1&&p.classes&&typeof p.used==='boolean','プレイヤーカードの保存形式が不正です');
- if(s.pendingPlayerCard){const p=s.pendingPlayerCard;check(s.phase==='player'&&s.playerCards.used&&p.owner==='Capitalist'&&p.cardId==='cc_foreign_market_insight'&&cardId(p.uid)===p.cardId&&s.playerCards.classes.Capitalist?.discard.includes(p.uid)&&Array.isArray(p.revealed)&&p.revealed.length===2&&new Set(p.revealed.map(c=>c.id)).size===2&&p.revealed.every(c=>root.WCA?.EXPORT_CARD_DATA[c.id]&&JSON.stringify(c)===JSON.stringify(root.WCA.EXPORT_CARD_DATA[c.id])),'継続中の輸出カード公開が不正です');}
+ if(s.pendingPlayerCard?.kind==='politics'){root.WCA.validatePlayerPolitics(s);}else if(s.pendingPlayerCard){const p=s.pendingPlayerCard;check(s.phase==='player'&&s.playerCards.used&&p.owner==='Capitalist'&&p.cardId==='cc_foreign_market_insight'&&cardId(p.uid)===p.cardId&&s.playerCards.classes.Capitalist?.discard.includes(p.uid)&&Array.isArray(p.revealed)&&p.revealed.length===2&&new Set(p.revealed.map(c=>c.id)).size===2&&p.revealed.every(c=>root.WCA?.EXPORT_CARD_DATA[c.id]&&JSON.stringify(c)===JSON.stringify(root.WCA.EXPORT_CARD_DATA[c.id])),'継続中の輸出カード公開が不正です');}
  const humans=Object.keys(classKeys).filter(owner=>s.records?.participants[owner]==='human');
  check(Object.keys(p.classes).length===humans.length&&humans.every(owner=>p.classes[owner]),'手札を管理する階級が不正です');
  for(const owner of humans){const c=p.classes[owner];check(c&&['deck','hand','discard'].every(k=>Array.isArray(c[k])),'山札・手札・捨て札が不正です');check(validOrder(owner,[...c.deck,...c.hand,...c.discard]),'アクションカードに重複・欠落があります');check(c.hand.length<=7,'手札は7枚までです');}

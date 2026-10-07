@@ -4,6 +4,28 @@ let selected=null;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={Working:'労働者',Capitalist:'資本家'},resources={food:'食料',health:'医療',education:'教育',luxury:'ぜいたく品'},industries={Food:'食料',Luxury:'贅沢品',Health:'医療',Education:'教育',Media:'影響力'},skills={Gray:'未熟練',Green:'農業',Blue:'贅沢品',White:'医療',Orange:'教育',Purple:'メディア'};
 function selection(s){const owner=root.PlayerCards.activeOwner(s),hand=s.playerCards?.classes[owner]?.hand||[];return hand.includes(selected)?selected:hand[0];}
+function politicalForm(s,owner,c,effect,pending,selected,form,commit){
+ const E=root.WCA,fields=form.querySelector('#cardEffectFields'),preview=form.querySelector('#cardEffectPreview'),button=form.querySelector('#playCardEffect'),classLabels={Working:'労働者',Middle:'中産階級',Capitalist:'資本家'},values=s.records.personal[owner].values;
+ const send=plan=>commit({type:pending?'playerCardContinue':'playerCardEffect',cardUid:pending?.uid||selected,plan,source:'ユーザー提供v6 JSON／公式v1.2 FAQ 印刷p.37'});
+ const draws=pending?.drawn,drawText=draws?Object.entries(draws).map(([id,n])=>`${classLabels[id]} ${n}個`).join(' ／ '):'';
+ if(effect==='politicsFake'){
+  if(!pending){fields.innerHTML='<p>保存された袋の構成から6個を抽選して公開します。その後、サプライへ戻す駒を最大4個選びます。</p><p class="muted">袋に6個ない場合のカード用補充規則は未確認のため、効果を開始できません。</p>';preview.textContent=`袋内 ${E.bagCount(s)}個`;button.disabled=E.bagCount(s)<6;button.textContent='6個を公開して続ける';form.onsubmit=e=>{e.preventDefault();send({});};return;}
+  fields.innerHTML=`<p>公開した6個：${drawText}</p>${Object.entries(draws).map(([id,n])=>`<label>サプライへ戻す${classLabels[id]}（公開${n}個）<input data-politics-remove="${id}" type="number" min="0" max="${n}" value="0"></label>`).join('')}`;
+  const plan=()=>({remove:Object.fromEntries([...form.querySelectorAll('[data-politics-remove]')].map(x=>[x.dataset.politicsRemove,Number(x.value)]))}),update=()=>{const p=plan(),total=Object.values(p.remove).reduce((a,b)=>a+b,0);button.disabled=total>4||Object.entries(p.remove).some(([id,n])=>!Number.isSafeInteger(n)||n<0||n>draws[id]);preview.textContent=`サプライへ${total}個、残り${6-total}個を袋へ戻します。`;};form.oninput=update;button.textContent='投票駒を戻して完了';form.onsubmit=e=>{e.preventDefault();send(plan());};update();return;
+ }
+ if(effect==='politicsInterest'){
+  fields.innerHTML='<p>他階級の投票駒が3個出るまで、袋から順に抽選します。他階級の3個をサプライへ戻し、自分の駒を最大3個袋へ入れます。途中で出た自分の駒はすべて袋へ戻します。</p><p class="muted">他階級の駒が袋に3個ない場合のカード用補充規則は未確認です。</p>';preview.textContent='抽選結果と交換数は確定後に保存します。';button.textContent='投票駒を公開して交換';form.onsubmit=e=>{e.preventDefault();send({});};return;
+ }
+ if(effect==='politicsPolling'&&pending){
+  fields.innerHTML=`<p>政策${pending.proposal.id}を${pending.proposal.target}へ提出済み。公開した5個：${drawText}</p><label>投票を行いますか<select id="effectPollingVote"><option value="false">投票せず、5個を袋へ戻す</option><option value="true">この5個で即時投票（開始時の影響力消費なし）</option></select></label><p>この選択を確定してから、他の参加者が賛否を示します。</p>`;preview.textContent='投票を行わない場合も、法案は通常の投票フェイズまで残ります。';button.textContent='選択を確定';form.onsubmit=e=>{e.preventDefault();send({immediate:form.querySelector('#effectPollingVote').value==='true'});};return;
+ }
+ const ids=E.politicalOptions(s,owner,c.id,pending?.firstPolicy),radical=effect==='politicsRadical',polling=effect==='politicsPolling';
+ fields.innerHTML=`${effect==='politicsDouble'?`<p>${pending?'最初の法案とは異なる政策を選んで、2つ目を提出します。':'2つの法案を1つずつ提出します。最初の即時投票後に2つ目を選べます。'+(owner==='Capitalist'?'最初に25Vを支払います。':'')}</p>`:''}${effect==='politicsMovement'?'<p>先に自分の投票駒を最大2個、サプライから袋へ入れます。</p>':''}<label>法案を提出する政策<select id="effectPoliticalPolicy">${ids.map(id=>`<option value="${id}">政策${id}（現在${s.positions[id]}）</option>`).join('')}</select></label><label>提議先<select id="effectPoliticalTarget"></select></label>${!radical&&!polling?'<label><input type="checkbox" id="effectPoliticalImmediate">影響力1を使って即時投票</label>':''}${radical?'<p>2区画先にも提議できます。即時投票は行いません。</p>':''}${polling?'<p>法案を提出して5個を公開後、影響力を使わず即時投票を開始するか選びます。</p><p class="muted">袋に5個ない場合のカード用補充規則は未確認のため、効果を開始できません。</p>':''}${ids.length?'':'<p class="notice">現在、提出できる政策がありません。</p>'}`;
+ const policy=form.querySelector('#effectPoliticalPolicy'),target=form.querySelector('#effectPoliticalTarget'),immediate=form.querySelector('#effectPoliticalImmediate');
+ const update=()=>{const vote=!!immediate?.checked;button.disabled=!policy.value||!target.value||(vote?values.influence<1:values.billMarkers<1)||polling&&E.bagCount(s)<5||effect==='politicsDouble'&&!pending&&(ids.length<2||values.billMarkers+values.influence<2);preview.textContent=policy.value?`政策${policy.value}を${s.positions[policy.value]} → ${target.value}に提議。${vote?'影響力1を消費して投票へ進みます。':'法案マーカー1個を使用します。'}${polling?'5個の公開後に投票するか選べます。':''}`:'提出できる政策がありません。';};
+ const targets=()=>{target.innerHTML=['A','B','C'].filter(x=>x!==s.positions[policy.value]&&(radical||Math.abs(x.charCodeAt(0)-s.positions[policy.value]?.charCodeAt(0))===1)).map(x=>`<option value="${x}">${x}</option>`).join('');update();};policy.onchange=targets;form.oninput=update;form.onchange=update;targets();
+ button.textContent=polling?'法案を提出して5個を公開':pending?'2つ目の法案を提出':'法案を提出';form.onsubmit=e=>{e.preventDefault();send({id:policy.value,position:target.value,immediate:!!immediate?.checked});};
+}
 function render(s,flow,commit){
  const P=root.PlayerCards,owner=Object.keys(s.playerCards?.classes||{}).find(id=>s.records?.participants[id]==='human');
  if(!owner){if(!s.playerCards&&s.phase==='player'){const note=document.createElement('p');note.className='muted';note.textContent='このゲームは実物の手札管理を使用しています。アプリ内のカード引き・効果を使うには「新しいゲーム」から開始してください。';flow.append(note);}return;}
@@ -11,7 +33,7 @@ function render(s,flow,commit){
  if(!pile.hand.includes(selected))selected=pile.hand[0];
  const panel=document.createElement('section');panel.className='player-hand';panel.id='playerHand';
  const hand=pile.hand.map(uid=>{const c=P.card(owner,uid),a=P.availability(s,owner,uid);return `<label class="hand-choice ${uid===selected?'selected':''}"><input type="radio" name="playerCard" value="${esc(uid)}" ${uid===selected?'checked':''} ${!active||used?'disabled':''}><span>${esc(c.name)}<small>${a.ready?'効果対応済み':P.effects[c.id]?'条件未成立':'基本アクション用・効果未対応'}</small></span></label>`;}).join('');
- panel.innerHTML=`<details ${active?'open':''}><summary>${labels[owner]}の手札 ${pile.hand.length}枚 · 山札 ${pile.deck.length}枚 · 捨て札 ${pile.discard.length}枚</summary>${active?`<p>${pending?'輸出カードを公開済みです。交換・売却を選んでカード効果を完了してください。':used?'この手番のメインアクションは実行済みです。フリーアクションを行うか手番を終了してください。':'使用するカードを選び、カード効果または下の基本アクションを1つ実行してください。'}</p>`:''}<div class="hand-grid">${hand}</div><div id="playerCardDetails"></div><details class="discard-cards"><summary>捨て札を見る</summary><ol>${pile.discard.map(uid=>`<li>${esc(P.card(owner,uid).name)}</li>`).join('')||'<li>なし</li>'}</ol></details></details>`;
+ panel.innerHTML=`<details ${active?'open':''}><summary>${labels[owner]}の手札 ${pile.hand.length}枚 · 山札 ${pile.deck.length}枚 · 捨て札 ${pile.discard.length}枚</summary>${active?`<p>${pending?(pending.kind==='politics'?'カード効果の続きが残っています。下の選択を完了してください。':'輸出カードを公開済みです。交換・売却を選んでカード効果を完了してください。'):used?'この手番のメインアクションは実行済みです。フリーアクションを行うか手番を終了してください。':'使用するカードを選び、カード効果または下の基本アクションを1つ実行してください。'}</p>`:''}<div class="hand-grid">${hand}</div><div id="playerCardDetails"></div><details class="discard-cards"><summary>捨て札を見る</summary><ol>${pile.discard.map(uid=>`<li>${esc(P.card(owner,uid).name)}</li>`).join('')||'<li>なし</li>'}</ol></details></details>`;
  const heading=flow.querySelector('h2');if(heading)heading.after(panel);else flow.append(panel);
  const details=panel.querySelector('#playerCardDetails');
  const show=()=>{
@@ -22,6 +44,7 @@ function render(s,flow,commit){
   if(!active||used&&!pending||!a.ready)return;
   const form=details.querySelector('form'),fields=form.querySelector('#cardEffectFields'),w=s.records.personal.Working.values,cap=s.records.personal.Capitalist.values;
   const qtyField=(title,max)=>`<label>${title}<input id="effectQty" type="number" min="0" max="${max}" value="${Math.min(1,max)}"></label>`;
+  if(a.effect.startsWith('politics')){politicalForm(s,owner,c,a.effect,pending,selected,form,commit);return;}
   if(['branding','foodCrisis','foreignPartner','exportInsight'].includes(a.effect)){
    if(a.effect==='exportInsight'&&!pending){fields.innerHTML='<p>次の輸出カード2枚を公開します。公開後に交換先と取引を選びます。公開内容は保存され、再読み込み後も続けられます。</p>';form.querySelector('#cardEffectPreview').textContent='このカードを使用して2枚を公開し、効果の選択へ進みます。';form.querySelector('#playCardEffect').textContent='輸出カード2枚を公開して続ける';form.onsubmit=e=>{e.preventDefault();commit({type:'playerCardReveal',cardUid:selected});};return;}
    const offersText=card=>card.offers.map(o=>`${resources[o.resource]}${o.quantity}個→${o.revenue}V`).join(' ／ ');

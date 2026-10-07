@@ -22,7 +22,7 @@ const {chromium}=require(process.argv[2]||'playwright'),assert=require('node:ass
  assert.equal(await page.evaluate(()=>state.playerCards.classes.Working.hand.length),7);assert.equal(await page.evaluate(()=>state.records.personal.Working.values.cash),30);
  await page.reload();assert.equal(await page.evaluate(()=>state.playerCards.classes.Working.hand.length),7);
  // Selecting an unsupported effect still allows a basic action; no bonus.
- await setup('Working','wc_fake_news');assert.equal(await page.locator('#playCardEffect').count(),0);assert.match(await page.locator('#playerCardDetails').textContent(),/次の実装/);
+ await setup('Working','wc_fake_news');assert.equal(await page.locator('#playCardEffect').count(),1);assert.match(await page.locator('#playerCardDetails').textContent(),/6個を抽選して公開/);
  await page.locator('#workingPressure').click();assert.equal(await page.evaluate(()=>state.playerCards.classes.Working.discard[0]),'wc_fake_news#1');
  await page.evaluate(()=>document.getElementById('boardInstructionDialog').close());
  await page.locator('#playerEnd').click();assert.equal(await page.evaluate(()=>state.phase),'start');
