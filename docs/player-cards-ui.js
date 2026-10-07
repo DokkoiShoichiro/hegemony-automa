@@ -7,22 +7,31 @@ function selection(s){const owner=root.PlayerCards.activeOwner(s),hand=s.playerC
 function render(s,flow,commit){
  const P=root.PlayerCards,owner=Object.keys(s.playerCards?.classes||{}).find(id=>s.records?.participants[id]==='human');
  if(!owner){if(!s.playerCards&&s.phase==='player'){const note=document.createElement('p');note.className='muted';note.textContent='このゲームは実物の手札管理を使用しています。アプリ内のカード引き・効果を使うには「新しいゲーム」から開始してください。';flow.append(note);}return;}
- const pile=s.playerCards.classes[owner],active=s.phase==='player',used=s.playerCards.used;
+ const pile=s.playerCards.classes[owner],active=s.phase==='player',used=s.playerCards.used,pending=s.pendingPlayerCard;
  if(!pile.hand.includes(selected))selected=pile.hand[0];
  const panel=document.createElement('section');panel.className='player-hand';panel.id='playerHand';
  const hand=pile.hand.map(uid=>{const c=P.card(owner,uid),a=P.availability(s,owner,uid);return `<label class="hand-choice ${uid===selected?'selected':''}"><input type="radio" name="playerCard" value="${esc(uid)}" ${uid===selected?'checked':''} ${!active||used?'disabled':''}><span>${esc(c.name)}<small>${a.ready?'効果対応済み':P.effects[c.id]?'条件未成立':'基本アクション用・効果未対応'}</small></span></label>`;}).join('');
- panel.innerHTML=`<details ${active?'open':''}><summary>${labels[owner]}の手札 ${pile.hand.length}枚 · 山札 ${pile.deck.length}枚 · 捨て札 ${pile.discard.length}枚</summary>${active?`<p>${used?'この手番のメインアクションは実行済みです。フリーアクションを行うか手番を終了してください。':'使用するカードを選び、カード効果または下の基本アクションを1つ実行してください。'}</p>`:''}<div class="hand-grid">${hand}</div><div id="playerCardDetails"></div><details class="discard-cards"><summary>捨て札を見る</summary><ol>${pile.discard.map(uid=>`<li>${esc(P.card(owner,uid).name)}</li>`).join('')||'<li>なし</li>'}</ol></details></details>`;
+ panel.innerHTML=`<details ${active?'open':''}><summary>${labels[owner]}の手札 ${pile.hand.length}枚 · 山札 ${pile.deck.length}枚 · 捨て札 ${pile.discard.length}枚</summary>${active?`<p>${pending?'輸出カードを公開済みです。交換・売却を選んでカード効果を完了してください。':used?'この手番のメインアクションは実行済みです。フリーアクションを行うか手番を終了してください。':'使用するカードを選び、カード効果または下の基本アクションを1つ実行してください。'}</p>`:''}<div class="hand-grid">${hand}</div><div id="playerCardDetails"></div><details class="discard-cards"><summary>捨て札を見る</summary><ol>${pile.discard.map(uid=>`<li>${esc(P.card(owner,uid).name)}</li>`).join('')||'<li>なし</li>'}</ol></details></details>`;
  const heading=flow.querySelector('h2');if(heading)heading.after(panel);else flow.append(panel);
  const details=panel.querySelector('#playerCardDetails');
  const show=()=>{
   panel.querySelectorAll('.hand-choice').forEach(el=>el.classList.toggle('selected',el.querySelector('input').value===selected));
-  const c=P.card(owner,selected);if(!c){details.innerHTML='';return;}
-  const a=P.availability(s,owner,selected);
-  details.innerHTML=`<h3>${esc(c.name)}</h3><p>${esc(c.effect)}</p>${c.requirement?`<p class="muted">使用条件：${esc(c.requirement)}</p>`:''}${c.bonus?`<p class="muted">正当性：${esc(c.bonus.detail||'+'+c.bonus.amount)}。2人戦は国家不参加のため適用しません。</p>`:''}${!a.ready?`<p class="notice">${esc(a.reason)}</p>`:''}${active&&!used&&a.ready?'<form id="playerCardEffectForm"><div id="cardEffectFields"></div><p id="cardEffectPreview" class="setup-summary" aria-live="polite"></p><button id="playCardEffect" type="submit">このカードの効果を使う</button></form>':''}`;
-  if(!active||used||!a.ready)return;
+  const c=P.card(owner,pending?.uid||selected);if(!c){details.innerHTML='';return;}
+  const a=P.availability(s,owner,pending?.uid||selected);
+  details.innerHTML=`<h3>${esc(c.name)}</h3><p>${esc(c.effect)}</p>${c.requirement?`<p class="muted">使用条件：${esc(c.requirement)}</p>`:''}${c.bonus?`<p class="muted">正当性：${esc(c.bonus.detail||'+'+c.bonus.amount)}。2人戦は国家不参加のため適用しません。</p>`:''}${!a.ready?`<p class="notice">${esc(a.reason)}</p>`:''}${active&&(!used||pending)&&a.ready?'<form id="playerCardEffectForm"><div id="cardEffectFields"></div><p id="cardEffectPreview" class="setup-summary" aria-live="polite"></p><button id="playCardEffect" type="submit">このカードの効果を使う</button></form>':''}`;
+  if(!active||used&&!pending||!a.ready)return;
   const form=details.querySelector('form'),fields=form.querySelector('#cardEffectFields'),w=s.records.personal.Working.values,cap=s.records.personal.Capitalist.values;
   const qtyField=(title,max)=>`<label>${title}<input id="effectQty" type="number" min="0" max="${max}" value="${Math.min(1,max)}"></label>`;
-  if(['discountHealth','discountEducation','tourism'].includes(a.effect)){const key={discountHealth:'health',discountEducation:'education',tourism:'luxury'}[a.effect],stock=a.effect==='tourism'?cap[key]:s.records.common.values[key];fields.innerHTML=qtyField(`${resources[key]}の購入数（人口${w.population}・在庫${stock??'未確認'}）`,Math.min(w.population,stock||0));}
+  if(['branding','foodCrisis','foreignPartner','exportInsight'].includes(a.effect)){
+   if(a.effect==='exportInsight'&&!pending){fields.innerHTML='<p>次の輸出カード2枚を公開します。公開後に交換先と取引を選びます。公開内容は保存され、再読み込み後も続けられます。</p>';form.querySelector('#cardEffectPreview').textContent='このカードを使用して2枚を公開し、効果の選択へ進みます。';form.querySelector('#playCardEffect').textContent='輸出カード2枚を公開して続ける';form.onsubmit=e=>{e.preventDefault();commit({type:'playerCardReveal',cardUid:selected});};return;}
+   const offersText=card=>card.offers.map(o=>`${resources[o.resource]}${o.quantity}個→${o.revenue}V`).join(' ／ ');
+   if(a.effect==='exportInsight')fields.innerHTML=`<p>公開したカード：${pending.revealed.map(card=>`<strong>${esc(card.id)}</strong>：${esc(offersText(card))}`).join('<br>')}</p><label>使用する輸出カード<select id="effectExportChoice"><option value="-1">現在のカードを維持</option>${pending.revealed.map((card,index)=>`<option value="${index}">公開した${esc(card.id)}に交換</option>`).join('')}</select></label>`;
+   if(a.effect==='foreignPartner')fields.innerHTML=`<label>行う商取引<select id="effectDealIndex">${s.records.trade.businessDeals.map((deal,index)=>`<option value="${index}">${index+1}枚目：食料${deal.food}・贅沢品${deal.luxury}／${deal.cost}V</option>`).join('')}</select></label><label>保管先<select id="effectDealDestination"><option value="freeTrade">自由貿易区（関税なし）</option><option value="regular">通常倉庫（関税込み）</option></select></label><p>容量超過分を除いて保管後、食料・贅沢品の輸出取引を選べます。</p>`;
+   fields.insertAdjacentHTML('beforeend','<div id="effectExportOffers"></div>');
+   const exportOffers=()=>{const choice=Number(form.querySelector('#effectExportChoice')?.value??-1),card=choice===-1?s.records.trade.exportCard:pending.revealed[choice];form.querySelector('#effectExportOffers').innerHTML=`<p>輸出取引を選択（食料・贅沢品は自由貿易区から先に使用）</p>${card.offers.map((offer,index)=>a.effect==='foreignPartner'&&!['food','luxury'].includes(offer.resource)?'':`<label><input type="checkbox" data-effect-export="${index}">${resources[offer.resource]}${offer.quantity}個を${offer.revenue}Vで販売</label>`).join('')||'<p class="notice">選べる輸出取引がありません。</p>'}`;};exportOffers();if(a.effect==='exportInsight')form.querySelector('#effectExportChoice').onchange=exportOffers;
+   if(['branding','foodCrisis'].includes(a.effect))fields.insertAdjacentHTML('beforeend',`<label>追加販売する${a.effect==='branding'?'贅沢品':'食料'}（${a.effect==='branding'?'最大6個・1個10V':'最大4個・1個15V'}）<input id="effectQty" type="number" min="0" max="${a.effect==='branding'?6:4}" value="0"></label>`);
+  }
+  else if(['discountHealth','discountEducation','tourism'].includes(a.effect)){const key={discountHealth:'health',discountEducation:'education',tourism:'luxury'}[a.effect],stock=a.effect==='tourism'?cap[key]:s.records.common.values[key];fields.innerHTML=qtyField(`${resources[key]}の購入数（人口${w.population}・在庫${stock??'未確認'}）`,Math.min(w.population,stock||0));}
   else if(['sellHealth','sellEducation','sellLuxury'].includes(a.effect)){const key={sellHealth:'health',sellEducation:'education',sellLuxury:'luxury'}[a.effect];fields.innerHTML=qtyField(`${resources[key]}の売却数（1個10V・在庫${cap[key]??'未確認'}）`,Math.min(key==='luxury'?6:9,cap[key]||0));}
   else if(a.effect==='accident')fields.innerHTML=`<label>対象産業<select id="effectIndustry">${Object.entries(industries).map(([id,label])=>`<option value="${id}">${label}</option>`).join('')}</select></label>`;
   else if(['immigration','farm'].includes(a.effect)){const count=a.effect==='farm'?3:2;fields.innerHTML=Array.from({length:count},(_,i)=>`<label>${i+1}人目<select data-effect-worker>${a.effect==='immigration'?'<option value="">取り除かない</option>':''}${Object.entries(skills).filter(([id])=>s.records.common.unemployed.Working[id]>0).map(([id,label])=>`<option value="${id}">${label}（失業${s.records.common.unemployed.Working[id]}人）</option>`).join('')}</select></label>`).join('');}
@@ -91,7 +100,7 @@ function render(s,flow,commit){
    form.querySelector('#effectPurchase').onchange=()=>{form.querySelector('#effectPurchaseFields').hidden=!form.querySelector('#effectPurchase').checked;};form.querySelector('#effectPurchaseResource').onchange=sources;sources();
   }
   const plan=()=>{
-   const result={};if(form.querySelector('#effectQty'))result.qty=Number(form.querySelector('#effectQty').value);
+   const result={};if(form.querySelector('#effectExportOffers'))result.transactions=[...form.querySelectorAll('[data-effect-export]:checked')].map(el=>Number(el.dataset.effectExport));if(form.querySelector('#effectExportChoice'))result.choice=Number(form.querySelector('#effectExportChoice').value);if(a.effect==='foreignPartner'){result.dealIndex=Number(form.querySelector('#effectDealIndex').value);result.destination=form.querySelector('#effectDealDestination').value;}if(form.querySelector('#effectQty'))result.qty=Number(form.querySelector('#effectQty').value);
    if(form.querySelector('#effectIndustry'))result.industry=form.querySelector('#effectIndustry').value;
    if(form.querySelector('[data-effect-worker]'))result.workers=[...form.querySelectorAll('[data-effect-worker]')].map(x=>x.value).filter(Boolean);
    if(form.querySelector('#effectCompany'))result.companyId=form.querySelector('#effectCompany').value;
@@ -112,7 +121,7 @@ function render(s,flow,commit){
   };
   const preview=()=>{const box=form.querySelector('#cardEffectPreview'),button=form.querySelector('#playCardEffect');try{
    const after=P.applyEffect(JSON.parse(JSON.stringify(s)),owner,c,plan()),changes=[];
-   for(const id of ['Working','Capitalist','State'])for(const [key,label] of Object.entries({cash:'資金',revenue:'収入',capital:'資本',vp:'VP',influence:'影響力',loans:'貸付金',food:'食料',health:'医療',education:'教育',luxury:'贅沢品'})){const b=s.records.personal[id].values[key],n=after.records.personal[id].values[key];if(b!==n&&Number.isSafeInteger(b)&&Number.isSafeInteger(n))changes.push(`${labels[id]||'国家'}の${label} ${b} → ${n}`);}
+   for(const id of ['Working','Capitalist','State'])for(const [key,label] of Object.entries({cash:'資金',revenue:'収入',capital:'資本',vp:'VP',influence:'影響力',loans:'貸付金',food:'食料',health:'医療',education:'教育',luxury:'贅沢品',freeTradeFood:'自由貿易区の食料',freeTradeLuxury:'自由貿易区の贅沢品'})){const b=s.records.personal[id].values[key],n=after.records.personal[id].values[key];if(b!==n&&Number.isSafeInteger(b)&&Number.isSafeInteger(n))changes.push(`${labels[id]||'国家'}の${label} ${b} → ${n}`);}
    for(const key of ['health','education','influence']){const b=s.records.common.values[key],n=after.records.common.values[key];if(b!==n)changes.push(`国家の${resources[key]||'影響力'}在庫 ${b} → ${n}`);}
    if(after.lastPlayerCard.production){const p=after.lastPlayerCard.production;changes.unshift(`${P.companyDefinition(s.records,p.companyId).name_jp}：${p.amount}個生産・賃金${p.wage}V`);if(p.storage?.freeTrade)changes.push(`自由貿易エリアへ${p.storage.freeTrade}個保管`);if(p.storage?.lost)changes.push(`倉庫容量超過で${p.storage.lost}個廃棄`);}
    for(const [id,key] of Object.entries({Working:'workingVotesOutside',Capitalist:'capitalistVotesOutside'})){const b=s.records.common.values[key],n=after.records.common.values[key];if(b!==n)changes.push(`${labels[id]}の投票駒を袋へ${b-n}個追加`);}
@@ -122,19 +131,22 @@ function render(s,flow,commit){
    if(after.lastPlayerCard.companySearch)changes.push('設立後に残りの企業山札をシャッフル');
    if(after.lastPlayerCard.machinery?.lost)changes.push(`配置先のない機械化トークン${after.lastPlayerCard.machinery.lost}枚は失われます`);
    const beforeWorkers=s.records.personal.Working.values.workerCount,afterWorkers=after.records.personal.Working.values.workerCount;if(beforeWorkers!==afterWorkers)changes.push(`労働者総数 ${beforeWorkers} → ${afterWorkers}`);
+   if(after.lastPlayerCard.tradeEffect?.type==='exportInsight')changes.push(after.lastPlayerCard.tradeEffect.choice===-1?'現在の輸出カードを維持・公開2枚を捨てる':'輸出カードを交換・元のカードと不使用カードを捨てる');
+   if(after.lastPlayerCard.tradeEffect?.type==='foreignPartner'){changes.push('使用した商取引カードを捨てる');for(const [key,lost] of Object.entries(after.lastPlayerCard.tradeEffect.losses))if(lost>0)changes.push(`容量超過で${resources[key]}${lost}個廃棄`);}
    const beforePopulation=s.records.personal.Working.values.population,afterPopulation=after.records.personal.Working.values.population;if(beforePopulation!==afterPopulation)changes.push(`労働者の人口 ${beforePopulation} → ${afterPopulation}`);
    box.textContent=changes.join(' ／ ')||'選択した効果を盤面へ反映します。';button.disabled=false;
   }catch(error){box.textContent=error.message;button.disabled=true;}};
   form.addEventListener('input',preview);form.addEventListener('change',preview);
-  form.onsubmit=e=>{e.preventDefault();commit({type:'playerCardEffect',cardUid:selected,plan:plan(),source:'ユーザー提供 hegemony_action_cards_full_v6_bonus_fixed.json'});};preview();
+  form.onsubmit=e=>{e.preventDefault();commit({type:pending?'playerCardContinue':'playerCardEffect',cardUid:pending?.uid||selected,plan:plan(),source:'ユーザー提供 hegemony_action_cards_full_v6_bonus_fixed.json'});};preview();
  };
  panel.querySelectorAll('[name="playerCard"]').forEach(input=>input.onchange=()=>{selected=input.value;show();});show();
  if(active){
   const intro=flow.querySelector('h2 + .setup-summary')||flow.querySelector(':scope > .setup-summary');
   if(intro)intro.textContent='カード効果と基本アクションは、どちらか1つをメインアクションとして実行します。';
   const basicIds=owner==='Working'?['workingAssign','workingBuy','workingPropose','workingStrike','workingDem','workingPressure']:['capBuild','capPressure','capLobby','capPropose','capPurchase','capSell','capExport'];
+  if(pending){const wage=flow.querySelector('#capRaiseWage');if(wage)wage.disabled=true;}
   if(used)basicIds.forEach(id=>{const button=flow.querySelector('#'+id);if(button)button.disabled=true;});
-  const end=flow.querySelector('#playerEnd');if(end)end.disabled=!used;
+  const end=flow.querySelector('#playerEnd');if(end)end.disabled=!used||!!pending;
   if(owner==='Capitalist'){
    const source=flow.querySelector('#capPurchaseSource');if(source){source.querySelector('[value="Foreign"]')?.remove();source.value='BusinessDeal';source.dispatchEvent(new Event('change'));}
    const policy=flow.querySelector('#capPolicy'),target=flow.querySelector('#capPolicyTarget');

@@ -18,6 +18,7 @@ const effects={
  cc_investment_opportunities:'investment',cc_technological_progress:'technology',
  wc_labor_market_deregulation:'deregulation',cc_unemployment_initiative_program:'employmentGrant',
  cc_foreign_recruitment:'foreignRecruitment',cc_competitive_wages:'competitiveWages',
+ cc_global_branding:'branding',cc_global_food_crisis:'foodCrisis',cc_foreign_partner:'foreignPartner',cc_foreign_market_insight:'exportInsight',
  cc_endorse_political_campaign:'campaign',cc_buy_private_island:'island',cc_offshore_companies:'offshore',
  cc_trade_protectionism_lobby:'industryVotes',cc_business_grants:'grants',cc_health_crisis:'sellHealth',
  cc_higher_education_program:'sellEducation',cc_bid_rigging:'sellLuxury',cc_exit_strategy:'exit'
@@ -40,14 +41,15 @@ function create(records,orders={}){
  return result;
 }
 function validate(s){
- const p=s.playerCards;if(p===undefined)return;
+ const p=s.playerCards;check(!s.pendingPlayerCard||p,'継続中のカードには手札管理が必要です');if(p===undefined)return;
  check(p?.version===1&&p.classes&&typeof p.used==='boolean','プレイヤーカードの保存形式が不正です');
+ if(s.pendingPlayerCard){const p=s.pendingPlayerCard;check(s.phase==='player'&&s.playerCards.used&&p.owner==='Capitalist'&&p.cardId==='cc_foreign_market_insight'&&cardId(p.uid)===p.cardId&&s.playerCards.classes.Capitalist?.discard.includes(p.uid)&&Array.isArray(p.revealed)&&p.revealed.length===2&&new Set(p.revealed.map(c=>c.id)).size===2&&p.revealed.every(c=>root.WCA?.EXPORT_CARD_DATA[c.id]&&JSON.stringify(c)===JSON.stringify(root.WCA.EXPORT_CARD_DATA[c.id])),'継続中の輸出カード公開が不正です');}
  const humans=Object.keys(classKeys).filter(owner=>s.records?.participants[owner]==='human');
  check(Object.keys(p.classes).length===humans.length&&humans.every(owner=>p.classes[owner]),'手札を管理する階級が不正です');
  for(const owner of humans){const c=p.classes[owner];check(c&&['deck','hand','discard'].every(k=>Array.isArray(c[k])),'山札・手札・捨て札が不正です');check(validOrder(owner,[...c.deck,...c.hand,...c.discard]),'アクションカードに重複・欠落があります');check(c.hand.length<=7,'手札は7枚までです');}
 }
 const activeOwner=s=>s.automaClass==='Capitalist'?'Working':'Capitalist';
-const mainEvents=new Set(['workingBasic','workingPolicy','playerPolicy','playerPurchase','playerBuild','playerSell','playerExport','playerLobby','playerPressure','playerCardEffect']);
+const mainEvents=new Set(['workingBasic','workingPolicy','playerPolicy','playerPurchase','playerBuild','playerSell','playerExport','playerLobby','playerPressure','playerCardEffect','playerCardReveal']);
 function consume(s,e){
  check(s.phase==='player'&&s.records?.participants[activeOwner(s)]==='human','プレイヤーの手番ではありません');
  check(!s.playerCards.used,'この手番のメインアクションは実行済みです');
@@ -57,7 +59,7 @@ function consume(s,e){
  else check(!['workingBasic','workingPolicy'].includes(e.type),'資本家のアクションではありません');
  c.hand.splice(index,1);c.discard.push(e.cardUid);s.playerCards.used=true;
  // workingBasic/workingPolicy perform their own legacy one-action check.
- return {owner,definition:card(owner,e.cardUid)};
+ return {owner,uid:e.cardUid,definition:card(owner,e.cardUid)};
 }
 function replenish(s){
  for(const c of Object.values(s.playerCards.classes)){
@@ -204,13 +206,45 @@ function purchase(r,s,resource,source,qty,discount=false,subsidy=false){
  const key=source==='State'?'cash':'revenue';seller[key]=known(seller[key],'販売収入')+(subsidy?total:cost);
  return {cost,qty};
 }
+function exportTransactions(records,indices,allowed=['food','luxury','health','education']){
+ check(Array.isArray(indices)&&new Set(indices).size===indices.length,'輸出取引を重複させずに選んでください');let r=copy(records);
+ for(const index of indices){const offer=r.trade.exportCard.offers[index];check(Number.isSafeInteger(index)&&offer&&allowed.includes(offer.resource),'輸出カードの取引が不正です');r=root.WCARecords.applyCapitalistExport(r,offer.resource,offer.quantity,offer.revenue);}return r;
+}
+function revealExport(s,played){
+ check(played?.owner==='Capitalist'&&played.definition.id==='cc_foreign_market_insight'&&!s.pendingPlayerCard,'このカードでは輸出カードを公開できません');
+ const revealed=[root.WCA.drawTradeCards(s,0).exportCard,root.WCA.drawTradeCards(s,0).exportCard];
+ s.pendingPlayerCard={owner:'Capitalist',uid:played.uid,cardId:played.definition.id,revealed};
+}
 function applyEffect(s,owner,c,plan={}){
  const a=availability(s,owner,c.id);check(a.ready,a.reason);
  check(s.records.participants.Middle==='absent'&&s.records.participants.State==='absent','この段階のプレイヤーカード効果は2人戦に対応しています');
- let production=null,machinery=null,companySearch=null,r=copy(s.records);const w=r.personal.Working.values,cap=r.personal.Capitalist.values,state=r.personal.State.values;
+ let production=null,machinery=null,companySearch=null,tradeEffect=null,r=copy(s.records);const w=r.personal.Working.values,cap=r.personal.Capitalist.values,state=r.personal.State.values;
  const bases={unemployed_workers:unemployed(r),assigned_workers:employed(r),companies_owned:built(r,'Capitalist').length};
  const addVotes=(who,n)=>{const key=voteKeys[who];r.common.values[key]=Math.max(0,known(r.common.values[key],'袋の外の投票駒')-n);};
  switch(a.effect){
+ case 'branding':case 'foodCrisis':{
+  r=exportTransactions(r,plan.transactions||[]);
+  const key=a.effect==='branding'?'luxury':'food',limit=a.effect==='branding'?6:4,price=a.effect==='branding'?10:15,qty=number(plan.qty??0,'追加販売数');check(qty<=limit,'追加販売数が上限を超えています');
+  check((plan.transactions||[]).length>0||qty>0,'輸出取引か追加販売を1つ以上選んでください');
+  if(qty)r=root.WCARecords.applyCapitalistExport(r,key,qty,qty*price);break;
+ }
+ case 'foreignPartner':{
+  check(Number.isSafeInteger(plan.dealIndex)&&r.trade.businessDeals[plan.dealIndex],'商取引カードを選んでください');
+  for(const key of ['revenue','capital','loans','food','luxury','foodStorage','luxuryStorage','freeTradeFood','freeTradeLuxury'])known(cap[key],'資本家の'+key);
+  known(state.cash,'国庫');r.trade=root.WCARecords.tradeData(r.trade);const deal=r.trade.businessDeals[plan.dealIndex];check(deal.food+deal.luxury>0,'商取引カードの商品数量を確認してください');
+  const importedBefore={food:cap.food,luxury:cap.luxury,freeTradeFood:cap.freeTradeFood,freeTradeLuxury:cap.freeTradeLuxury},purchaseResult=root.WCARecords.applyCapitalistPurchase(r,{source:'BusinessDeal',dealIndex:plan.dealIndex,destination:plan.destination},s.positions[6]);r=purchaseResult.records;
+  const imported=r.personal.Capitalist.values;
+  if(plan.destination==='regular')for(const [key,capacity] of [['food',8],['luxury',12]])imported[key]=Math.min(imported[key],capacity*(1+imported[key+'Storage']));
+  const losses={};for(const key of ['food','luxury']){const storageKey=plan.destination==='regular'?key:key==='food'?'freeTradeFood':'freeTradeLuxury';losses[key]=importedBefore[storageKey]+deal[key]-imported[storageKey];}
+  r=exportTransactions(r,plan.transactions||[],['food','luxury']);tradeEffect={type:'foreignPartner',deal:copy(deal),destination:plan.destination,total:purchaseResult.total,tariff:purchaseResult.tariff,losses};break;
+ }
+ case 'exportInsight':{
+  validate(s);const pending=s.pendingPlayerCard;check(pending?.cardId===c.id&&pending.owner===owner,'先に輸出カード2枚を公開してください');
+  check([-1,0,1].includes(plan.choice),'現在の輸出カードを維持するか、公開したカードを選んでください');
+  if(plan.choice!==-1)r.trade.exportCard=copy(pending.revealed[plan.choice]);
+  r=exportTransactions(r,plan.transactions||[]);
+  tradeEffect={type:'exportInsight',revealed:copy(pending.revealed),choice:plan.choice};break;
+ }
  case 'deregulation':r=assignWorkers(r,plan,root.WCARecords.workingWorkerCount(r),s.positions[2]!=='C');break;
  case 'employmentGrant':{
   const d=stoppedCompany(r,plan.companyId);
@@ -347,9 +381,10 @@ function applyEffect(s,owner,c,plan={}){
  // games the State is absent, so we preserve the bonus but do not apply it.
  const legitimacy=bonusAmount(c.bonus,bases);
  s.records=root.WCARecords.validate(r);
- s.lastPlayerCard={id:c.id,owner,production,machinery,companySearch,legitimacy,legitimacyApplied:false,source:'ユーザー提供 v6 JSON／基本ルール v1.2：正当性は国家参加時のみ'};
+ s.lastPlayerCard={id:c.id,owner,production,machinery,companySearch,tradeEffect,legitimacy,legitimacyApplied:false,source:'ユーザー提供 v6 JSON／基本ルール v1.2：正当性は国家参加時のみ'};
+ if(a.effect==='exportInsight')delete s.pendingPlayerCard;
  return s;
 }
-const api={catalog,card,definition,allCopies,shuffled,create,validate,activeOwner,mainEvents,consume,replenish,availability,bonusAmount,applyEffect,effects,companyDefinition,workerChoices,publicTransferSlots};
+const api={catalog,card,definition,allCopies,shuffled,create,validate,activeOwner,mainEvents,consume,replenish,availability,bonusAmount,applyEffect,effects,companyDefinition,workerChoices,publicTransferSlots,revealExport};
 root.PlayerCards=api;if(typeof module!=='undefined')module.exports=api;
 })(globalThis);

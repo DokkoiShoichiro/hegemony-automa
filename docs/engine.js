@@ -86,6 +86,7 @@ function influencePlan(s,id,sides,cubes){const values=s.records.personal[id]?.va
  const need=needed(side);if(ownSide<need)return {type:'none',spend:0,cards:0,reason:'自陣営の影響力を全て使っても逆転不能'};if(!others)return {type:'necessary',spend:Math.min(available,need),cards:0,reason:'相手陣営に影響力がないため必要数を使用'};if(ownSide===need)return {type:'drawAll',spend:0,cards:1,reason:'自陣営が逆転にちょうど必要な影響力を所持'};const spend=Math.min(available,need),cards=Math.min(Math.max(0,available-spend),others);return cards?{type:'necessaryDraw',spend,cards,reason:'必要数を使用後、相手陣営の影響力数だけカードを引く'}:{type:'necessary',spend,cards:0,reason:'必要数を使用し、残りの影響力なし'};
 }
 function validate(s){
+ requireThat(!s.pendingPlayerCard||s.playerCards,'継続中のカードには手札管理が必要です');
  if(s.playerCards!==undefined){requireThat(root.PlayerCards,'プレイヤーカードモジュールが必要です');root.PlayerCards.validate(s);}
  requireThat(s?.version===1,'保存形式に対応していません');
  if(s.records!==undefined){requireThat(root.WCARecords,'盤面記録モジュールが必要です');root.WCARecords.validate(s.records);}
@@ -112,7 +113,7 @@ function validate(s){
  if(['checks','action','end'].includes(s.phase))requireThat(s.card&&s.card.order?.length===4&&new Set(s.card.order).size===4&&s.card.order.every(x=>checkIds(s).includes(x)),'AIカードが不正です');
  return s;
 }
-function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'',played=null;
+function reduce(state,e){requireThat(!state.pendingPlayerCard||['playerCardContinue','setup'].includes(e.type),'公開した輸出カードの効果を先に完了してください');let s=copy(state);s.proposals??={};let note=e.note||'',played=null;
  if(s.playerCards&&root.PlayerCards.mainEvents.has(e.type))played=root.PlayerCards.consume(s,e);
  if(s.playerCards&&e.type==='playerEnd'){requireThat(s.playerCards.used,'カード効果か基本アクションを1つ実行してください');s.playerCards.used=false;}
  if(s.playerCards&&e.type==='playerWage')requireThat(s.phase==='player'&&root.PlayerCards.activeOwner(s)==='Capitalist','資本家プレイヤーの手番ではありません');
@@ -193,6 +194,8 @@ function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'',
   if(e.immediate){requireThat(w.influence>0,'即時投票に必要な影響力がありません');w.influence--;beginElection(s,[{id,proposer:'Working',from,target,immediate:true}],'immediate','player');}
   else {requireThat(w.billMarkers>0,'法案マーカーがありません');w.billMarkers--;s.proposals[id]={proposer:'Working',from,target,round:s.round,turn:s.turn};aside(s,'policies',id,'bill:Working');}
   s.workingBasicUsed=true;note=`労働者が政策${id}を${target}へ提議`;break;}
+ case 'playerCardReveal':{requireThat(played,'アプリ内の手札管理が必要です');root.PlayerCards.revealExport(s,played);note='輸出カード2枚を公開（交換・売却を選んで継続）';break;}
+ case 'playerCardContinue':{const pending=s.pendingPlayerCard;requireThat(pending&&s.phase==='player','継続中のカード効果がありません');root.PlayerCards.applyEffect(s,pending.owner,root.PlayerCards.definition(pending.owner,pending.cardId),e.plan);note='海外市場の知見の交換・売却を完了';break;}
  case 'playerCardEffect':{requireThat(played,'アプリ内の手札管理が必要です');const hadDemo=!!s.records.common.tokens.demonstration;root.PlayerCards.applyEffect(s,played.owner,played.definition,e.plan);if(hadDemo&&!s.records.common.tokens.demonstration&&s.aside.actions.DEM==='demonstration')place(s,'actions','DEM',0);note=`${played.definition.name}の効果を実行`;break;}
  case 'playerPolicy':{
   requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');const id=e.id,current=s.positions[id],target=e.position,cap=s.records.personal.Capitalist.values;requireThat(/^[1-7]$/.test(id)&&!s.proposals[id]&&!String(s.aside.policies[id]||'').startsWith('bill:'),'この政策には提議できません');requireThat(['A','B','C'].includes(target)&&target!==current,'現在と異なる提議先を選んでください');
