@@ -193,7 +193,7 @@ function reduce(state,e){let s=copy(state);s.proposals??={};let note=e.note||'',
   if(e.immediate){requireThat(w.influence>0,'即時投票に必要な影響力がありません');w.influence--;beginElection(s,[{id,proposer:'Working',from,target,immediate:true}],'immediate','player');}
   else {requireThat(w.billMarkers>0,'法案マーカーがありません');w.billMarkers--;s.proposals[id]={proposer:'Working',from,target,round:s.round,turn:s.turn};aside(s,'policies',id,'bill:Working');}
   s.workingBasicUsed=true;note=`労働者が政策${id}を${target}へ提議`;break;}
- case 'playerCardEffect':requireThat(played,'アプリ内の手札管理が必要です');root.PlayerCards.applyEffect(s,played.owner,played.definition,e.plan);note=`${played.definition.name}の効果を実行`;break;
+ case 'playerCardEffect':{requireThat(played,'アプリ内の手札管理が必要です');const hadDemo=!!s.records.common.tokens.demonstration;root.PlayerCards.applyEffect(s,played.owner,played.definition,e.plan);if(hadDemo&&!s.records.common.tokens.demonstration&&s.aside.actions.DEM==='demonstration')place(s,'actions','DEM',0);note=`${played.definition.name}の効果を実行`;break;}
  case 'playerPolicy':{
   requireThat(s.phase==='player'&&s.records,'資本家の手番ではありません');const id=e.id,current=s.positions[id],target=e.position,cap=s.records.personal.Capitalist.values;requireThat(/^[1-7]$/.test(id)&&!s.proposals[id]&&!String(s.aside.policies[id]||'').startsWith('bill:'),'この政策には提議できません');requireThat(['A','B','C'].includes(target)&&target!==current,'現在と異なる提議先を選んでください');
   if(s.playerCards)requireThat(Math.abs(target.charCodeAt(0)-current.charCodeAt(0))===1,'基本アクションでは隣接する区画へ提議してください');
