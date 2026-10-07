@@ -15,6 +15,7 @@ const effects={
  wc_specialization:'specialization',wc_signing_bonus:'signingBonus',cc_industrialization:'industrialization',
  wc_public_sector_overtime:'publicOvertime',cc_extra_shift:'extraShift',
  wc_general_strike:'generalStrike',cc_business_expansion:'businessExpansion',
+ cc_investment_opportunities:'investment',cc_technological_progress:'technology',
  cc_endorse_political_campaign:'campaign',cc_buy_private_island:'island',cc_offshore_companies:'offshore',
  cc_trade_protectionism_lobby:'industryVotes',cc_business_grants:'grants',cc_health_crisis:'sellHealth',
  cc_higher_education_program:'sellEducation',cc_bid_rigging:'sellLuxury',cc_exit_strategy:'exit'
@@ -158,8 +159,10 @@ function assignWorkers(records,plan,limit,unemployedOnly){
  for(const [industry,active] of Object.entries(r.personal.Working.unions))if(active&&employedIn(industry)<4){r.personal.Working.unions[industry]=false;r.common.unemployed.Working[unionSkills[industry]]++;}
  return root.WCARecords.validate(r);
 }
-function buildCompany(records,positions,plan,half=false){
+function buildCompany(records,positions,plan,half=false,investmentMode=null){
+ records=copy(records);
  const d=def(plan.companyId);check(d?.class==='Capitalist'&&(!half||['Food','Luxury'].includes(d.industry)),half?'食料または贅沢品の資本家企業を選んでください':'資本家企業を選んでください');
+ if(investmentMode==='search'){check(root.WCARecords.marketCandidates(records).some(candidate=>candidate.id===d.id),'未使用の企業山札から選んでください');records.companies[d.id].status='market';}
  check(records.companies[d.id]?.status==='market','資本家の企業市場から選んでください');
  const workers=plan.workers||[],hasWages=Object.keys(d.wages||{}).length>0,minimum=({A:3,B:2,C:1})[positions[2]],wage=hasWages?plan.wage:'unknown';
  check(Array.isArray(workers)&&(workers.length===0||workers.length===d.workers.length),'設立時は企業の全スロットを埋めてください');
@@ -172,7 +175,9 @@ function buildCompany(records,positions,plan,half=false){
  });
  if(workers.length){const unskilled=d.workers.filter(req=>req.type!=='Skilled').length,gray=Math.min(known(records.common.unemployed.Working.Gray,'未熟練失業者'),unskilled);check(workers.filter(skill=>skill==='Gray').length===gray,'設立時の未熟練枠は未熟練失業者を優先してください');}
  const value={status:'built',wage,operating:d.workers.length===0||workers.length?'yes':'no',machinery:false,strike:false,note:'',slots};
- return root.WCARecords.applyCapitalistBuild(records,d.id,value,common,{capitalistCost:half?Math.ceil(d.cost/2):d.cost,stateCost:half?Math.floor(d.cost/2):0});
+ const discount=investmentMode==='discount'?Math.min(10,d.cost):0;
+ if(investmentMode==='search')payCap(records.personal.Capitalist.values,10);
+ return root.WCARecords.applyCapitalistBuild(records,d.id,value,common,{capitalistCost:half?Math.ceil(d.cost/2):d.cost-discount,stateCost:half?Math.floor(d.cost/2):0,discount});
 }
 function purchase(r,s,resource,source,qty,discount=false,subsidy=false){
  const w=r.personal.Working.values;number(qty,'購入数');check(qty<=w.population,'購入数は人口までです');
@@ -190,10 +195,27 @@ function purchase(r,s,resource,source,qty,discount=false,subsidy=false){
 function applyEffect(s,owner,c,plan={}){
  const a=availability(s,owner,c.id);check(a.ready,a.reason);
  check(s.records.participants.Middle==='absent'&&s.records.participants.State==='absent','この段階のプレイヤーカード効果は2人戦に対応しています');
- let production=null,r=copy(s.records);const w=r.personal.Working.values,cap=r.personal.Capitalist.values,state=r.personal.State.values;
+ let production=null,machinery=null,companySearch=null,r=copy(s.records);const w=r.personal.Working.values,cap=r.personal.Capitalist.values,state=r.personal.State.values;
  const bases={unemployed_workers:unemployed(r),assigned_workers:employed(r),companies_owned:built(r,'Capitalist').length};
  const addVotes=(who,n)=>{const key=voteKeys[who];r.common.values[key]=Math.max(0,known(r.common.values[key],'袋の外の投票駒')-n);};
  switch(a.effect){
+ case 'investment':{
+  check(['discount','search'].includes(plan.mode),'市場の割引設立か企業山札の検索を選んでください');
+  r=buildCompany(r,s.positions,plan,false,plan.mode);
+  if(plan.mode==='search')companySearch={companyId:plan.companyId,shuffleRequired:true};
+  break;
+ }
+ case 'technology':{
+  check([1,2].includes(plan.qty),'機械化トークンは1枚または2枚を選んでください');
+  const remaining=6-Object.values(r.companies).filter(company=>company.status==='built'&&company.machinery).length;
+  check(plan.qty<=remaining,'機械化トークンの残り枚数が足りません');
+  const eligible=built(r,'Capitalist').filter(([id,company])=>!company.machinery&&Number(def(id).production.machinery_bonus||0)>0).map(([id])=>id),ids=plan.companyIds;
+  check(Array.isArray(ids)&&ids.length===Math.min(plan.qty,eligible.length)&&new Set(ids).size===ids.length&&ids.every(id=>eligible.includes(id)),'必要な枚数分、異なる機械化可能な自分の企業を選んでください');
+  const cost=plan.qty===1?20:45;payCap(cap,cost);
+  for(const id of ids)r.companies[id].machinery=true;
+  machinery={quantity:plan.qty,placed:ids.length,lost:plan.qty-ids.length,cost};
+  break;
+ }
  case 'businessExpansion':{
   check(Array.isArray(plan.builds)&&plan.builds.length===2&&plan.builds.every(item=>item&&typeof item.companyId==='string')&&new Set(plan.builds.map(item=>item?.companyId)).size===2,'事業拡大は異なる企業2社を選んでください');
   const candidates=root.WCARecords.marketCandidates(r).map(d=>d.id),adds=plan.marketAdds;
@@ -287,12 +309,12 @@ function applyEffect(s,owner,c,plan={}){
  }
  default:throw Error('このカード効果は未対応です');
  }
- if(['specialization','signingBonus','industrialization','businessExpansion'].includes(a.effect)&&r.common.tokens.demonstration&&!root.WCARecords.demonstrationStatus(r).eligible)r.common.tokens.demonstration=false;
+ if(['specialization','signingBonus','industrialization','businessExpansion','investment'].includes(a.effect)&&r.common.tokens.demonstration&&!root.WCARecords.demonstrationStatus(r).eligible)r.common.tokens.demonstration=false;
  // Legitimacy changes belong to the State player's tracks. In two-player
  // games the State is absent, so we preserve the bonus but do not apply it.
  const legitimacy=bonusAmount(c.bonus,bases);
  s.records=root.WCARecords.validate(r);
- s.lastPlayerCard={id:c.id,owner,production,legitimacy,legitimacyApplied:false,source:'ユーザー提供 v6 JSON／基本ルール v1.2：正当性は国家参加時のみ'};
+ s.lastPlayerCard={id:c.id,owner,production,machinery,companySearch,legitimacy,legitimacyApplied:false,source:'ユーザー提供 v6 JSON／基本ルール v1.2：正当性は国家参加時のみ'};
  return s;
 }
 const api={catalog,card,definition,allCopies,shuffled,create,validate,activeOwner,mainEvents,consume,replenish,availability,bonusAmount,applyEffect,effects,companyDefinition,workerChoices};
