@@ -8,5 +8,19 @@ const {chromium}=require(process.argv[2]||'playwright'),assert=require('node:ass
  await page.locator('#tab-personal').click();await page.locator('#classPick').selectOption('Capitalist');await page.locator('#personalForm [data-number="revenue"]').fill('234');await page.locator('#personalForm button[type="submit"]').click();assert.equal(await value('Capitalist','revenue').innerText(),'234V');assert.equal(await page.locator('#boardSummary').isVisible(),true);await page.reload();assert.equal(await value('Capitalist','revenue').innerText(),'234V');await page.locator('#tab-policy').click();assert.equal(await page.locator('#boardSummary').isVisible(),true);
  await page.evaluate(()=>{state.records.personal.Capitalist.values.food=null;render();});assert.equal(await value('Capitalist','food').innerText(),'—');
  for(const width of [320,390,768,1280]){await page.setViewportSize({width,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'horizontal overflow at '+width);const columns=await page.locator('.summary-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);assert.equal(columns,width>960?4:2);}
- await page.setViewportSize({width:390,height:844});await page.locator('#boardSummary').screenshot({path:'/tmp/board-summary-mobile.png'});await page.setViewportSize({width:1280,height:844});await page.locator('#boardSummary').screenshot({path:'/tmp/board-summary-desktop.png'});assert.deepEqual(errors,[]);console.log('PASS board summary: four classes, company states, skill counts including unions, separate FTZ, public stocks, live actions, undo, edits, reload, unknown values and 320–1280px layouts');
+ await page.setViewportSize({width:390,height:844});await page.locator('#boardSummary').screenshot({path:'/tmp/board-summary-mobile.png'});await page.setViewportSize({width:1280,height:844});await page.locator('#boardSummary').screenshot({path:'/tmp/board-summary-desktop.png'});
+ // The shared overview must survive both automas' entire check/action flow.
+ await page.locator('#tab-turn').click();
+ for(const automaClass of ['Working','Capitalist']){
+  await page.evaluate(automaClass=>{history=[];state=E.reduce(E.initial(),{type:'setup',players:2,confirmed:true,automaClass,immigrant:'Gray',deck:['7']});PlayerCardsUi.reset();if(state.phase==='player')state=E.reduce(state,{type:'playerEnd'});render();persist();},automaClass);
+  assert.equal(await page.evaluate(()=>state.phase),'start');assert(await page.locator('#boardSummary').isVisible(),automaClass+' start');
+  await page.locator('#next').click();await page.evaluate(()=>document.getElementById('boardInstructionDialog')?.close());
+  for(let index=0;index<4;index++){
+   assert.equal(await page.evaluate(()=>state.phase),'checks');assert(await page.locator('#boardSummary').isVisible(),automaClass+' check '+index);
+   await page.evaluate(()=>{state=E.reduce(state,{type:'check',confirmed:true,note:'Board summary visibility regression',movements:[]});render();persist();});
+  }
+  assert.equal(await page.evaluate(()=>state.phase),'action');assert(await page.locator('#boardSummary').isVisible(),automaClass+' action');assert.equal(await page.locator('#boardSummary article').count(),4);
+  await page.reload();assert.equal(await page.evaluate(()=>state.phase),'action');assert(await page.locator('#boardSummary').isVisible(),automaClass+' action after reload');
+ }
+ assert.deepEqual(errors,[]);console.log('PASS board summary: four classes, company states, skill counts including unions, separate FTZ, public stocks, live actions, undo, edits, reload, unknown values, 320–1280px layouts and both automas start/check/action phases');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
