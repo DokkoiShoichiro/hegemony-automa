@@ -3,7 +3,7 @@
 let selected=null;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const companyName=def=>root.WCARecords.companyName(def);
-const labels={Working:'労働者',Capitalist:'資本家'},resources={food:'食料',health:'医療',education:'教育',luxury:'ぜいたく品'},industries={Food:'食料',Luxury:'贅沢品',Health:'医療',Education:'教育',Media:'影響力'},skills={Gray:'未熟練',Green:'農業',Blue:'贅沢品',White:'医療',Orange:'教育',Purple:'メディア'};
+const labels={Working:'労働者',Capitalist:'資本家',Middle:'中産階級'},resources={food:'食料',health:'医療',education:'教育',luxury:'ぜいたく品'},industries={Food:'食料',Luxury:'贅沢品',Health:'医療',Education:'教育',Media:'影響力'},skills={Gray:'未熟練',Green:'農業',Blue:'贅沢品',White:'医療',Orange:'教育',Purple:'メディア'};
 function copyLabel(owner,uid){const c=root.PlayerCards.card(owner,uid);return c.copies>1?`同名カード ${String(uid).split('#')[1]}/${c.copies}`:'この階級に1枚';}
 function selection(s){const owner=root.PlayerCards.activeOwner(s),hand=s.playerCards?.classes[owner]?.hand||[];return hand.includes(selected)?selected:hand[0];}
 function politicalForm(s,owner,c,effect,pending,selected,form,commit){
@@ -121,7 +121,7 @@ function render(s,flow,commit){
   else if(['unemploymentIncome','employmentIncome'].includes(a.effect)){
    fields.innerHTML='<label><input id="effectPurchase" type="checkbox">給付後に商品・サービスを購入する</label><div id="effectPurchaseFields" hidden><label>資源<select id="effectPurchaseResource"><option value="health">医療</option><option value="education">教育</option><option value="food">食料</option><option value="luxury">ぜいたく品</option></select></label><div id="effectPurchaseSources"></div></div>';
    if(a.effect==='unemploymentIncome')form.querySelectorAll('#effectPurchaseResource option[value="food"],#effectPurchaseResource option[value="luxury"]').forEach(o=>o.remove());
-   const sources=()=>{const key=form.querySelector('#effectPurchaseResource').value,ids=a.effect==='unemploymentIncome'?(['health','education'].includes(key)?['State']:[]):['Capitalist',...(['health','education'].includes(key)?['State']:['Foreign'])];form.querySelector('#effectPurchaseSources').innerHTML=ids.map(id=>`<label>${{State:'国家',Capitalist:'資本家',Foreign:'海外市場'}[id]}から買う数量<input data-effect-source="${id}" type="number" min="0" max="${w.population}" value="0"></label>`).join('')||'<p class="muted">国家から購入できるのは医療・教育です。</p>';};
+   const sources=()=>{const key=form.querySelector('#effectPurchaseResource').value,ids=a.effect==='unemploymentIncome'?(['health','education'].includes(key)?['State']:[]):['Capitalist',...(['health','education'].includes(key)?['State']:['Foreign'])];form.querySelector('#effectPurchaseSources').innerHTML=ids.map(id=>`<label>${{State:'国家',Capitalist:'資本家',Middle:'中産階級',Foreign:'海外市場'}[id]}から買う数量<input data-effect-source="${id}" type="number" min="0" max="${w.population}" value="0"></label>`).join('')||'<p class="muted">国家から購入できるのは医療・教育です。</p>';};
    form.querySelector('#effectPurchase').onchange=()=>{form.querySelector('#effectPurchaseFields').hidden=!form.querySelector('#effectPurchase').checked;};form.querySelector('#effectPurchaseResource').onchange=sources;sources();
   }
   const plan=()=>{
