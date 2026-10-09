@@ -69,7 +69,7 @@ function priorityBoardHtml(view,label,active=false){const rowIds=[...new Set([..
 function renderBoardSummary(){
  const panel=$('boardSummary'),r=state.records;
  panel.hidden=!r;if(!r){panel.innerHTML='';return;}
- const opened=panel.querySelector('[data-summary-companies]')?.open||false;
+ const opened=new Set([...panel.querySelectorAll('[data-summary-companies][open]')].map(el=>el.dataset.summaryCompanies));
  const number=n=>Number.isFinite(n)?String(n):'—';
  const value=(key,n,unit='')=>`<strong data-summary-value="${key}">${number(n)}${unit?`<small>${unit}</small>`:''}</strong>`;
  const metric=(key,label,n,unit='')=>`<div><dt>${label}</dt><dd>${value(key,n,unit)}</dd></div>`;
@@ -79,7 +79,8 @@ function renderBoardSummary(){
  const role=id=>({human:'プレイヤー',automa:'オートマ',absent:id==='State'?'公共部門':'不参加'})[r.participants[id]]||'未確認';
  const heading=(id,label)=>`<header><h2>${label}</h2><span>${role(id)}</span></header>`;
  const defs=new Map([...WCA_COMPANIES,...WCA_EXTRA_COMPANIES].map(d=>[d.id,d]));
- const companies=Object.entries(r.companies).filter(([id,c])=>c.status==='built'&&defs.get(id)?.class==='Capitalist');
+ const ownedCompanies=owner=>Object.entries(r.companies).filter(([id,c])=>c.status==='built'&&defs.get(id)?.class===owner);
+ const companies=ownedCompanies('Capitalist'),publicCompanies=ownedCompanies('State');
  const active=companies.filter(([,c])=>c.operating==='yes').length,inactive=companies.filter(([,c])=>c.operating==='no').length,unknown=companies.length-active-inactive,machinery=companies.filter(([,c])=>c.machinery).length;
  const companyCounts=`<p class="summary-company-counts"><span>操業 <b data-summary-value="operating">${active}</b></span><span>未操業 <b data-summary-value="inactive">${inactive}</b></span><span>機械化 <b data-summary-value="machinery">${machinery}</b></span>${unknown?`<span>未確認 ${unknown}</span>`:''}</p>`;
  const companySlots=c=>{
@@ -90,7 +91,7 @@ function renderBoardSummary(){
    return `<span class="summary-slot ${empty||unconfirmed?'empty':''} skill-${esc(slot.skill)} ${slot.owner==='Middle'?'middle':''}" data-summary-slot="${i}" aria-label="${esc(label)}" title="${esc(label)}">${empty?'空き':unconfirmed?'？':`${slot.owner==='Middle'?'中・':''}${esc(skill)}${slot.committed?'◆':''}`}</span>`;
   }).join('')}</div></div>`;
  };
- const companyList=companies.length?`<details data-summary-companies ${opened?'open':''}><summary>企業${companies.length}社の内訳</summary><ul>${companies.map(([id,c])=>`<li data-summary-company="${esc(id)}"><div class="summary-company-heading"><span>${esc(defs.get(id).name_jp)}</span><span class="summary-company-state ${c.operating==='yes'?'operating':''}">${({yes:'操業',no:'未操業',unknown:'未確認'})[c.operating]}${c.machinery?' · 機械化':''}${c.strike?' · ストライキ':''}</span></div>${companySlots(c)}</li>`).join('')}</ul><p class="summary-slot-legend">◆ 誓約中 · 中＝中産階級</p></details>`:'<p class="summary-note">建設済みの企業なし</p>';
+ const companyList=(owner,companies,label)=>companies.length?`<details data-summary-companies="${owner}" ${opened.has(owner)?'open':''}><summary>${label}${companies.length}社の内訳</summary><ul>${companies.map(([id,c])=>`<li data-summary-company="${esc(id)}"><div class="summary-company-heading"><span>${esc(defs.get(id).name_jp)}</span><span class="summary-company-state ${c.operating==='yes'?'operating':''}">${({yes:'操業',no:'未操業',unknown:'未確認'})[c.operating]}${c.machinery?' · 機械化':''}${c.strike?' · ストライキ':''}</span></div>${companySlots(c)}</li>`).join('')}</ul><p class="summary-slot-legend">◆ 誓約中 · 中＝中産階級</p></details>`:`<p class="summary-note">建設済みの${label}なし</p>`;
  const cap=r.personal.Capitalist.values,w=r.personal.Working.values,treasury=r.personal.State.values,common=r.common.values;
  const skillCounts=Object.fromEntries(Object.keys(skillLabels).map(key=>[key,Number(r.common.unemployed?.Working?.[key]||0)]));
  let employed=0,committed=0;for(const c of Object.values(r.companies))if(c.status==='built')for(const slot of c.slots)if(slot.owner==='Working'){skillCounts[slot.skill]++;employed++;if(slot.committed)committed++;}
@@ -99,10 +100,10 @@ function renderBoardSummary(){
  const unemployed=Object.values(r.common.unemployed?.Working||{}).reduce((n,x)=>n+Number(x||0),0);
  const footer=values=>`<p class="summary-footer">${values.map(([label,key,n,unit])=>`<span>${label} ${value(key,n,unit)}</span>`).join('')}</p>`;
  panel.innerHTML=`<div class="summary-grid">
- <article class="summary-capitalist" data-summary-class="Capitalist">${heading('Capitalist','資本家')}${stats([metric('vp','VP',cap.vp),metric('wealth','富マーカー',cap.wealth),metric('revenue','収益',cap.revenue,'V'),metric('capital','資本',cap.capital,'V')])}${companyCounts}${companyList}${resources(cap)}<div class="summary-free-trade" aria-label="自由貿易区"><span>自由貿易区</span>${chip('freeTradeFood','食料',cap.freeTradeFood)}${chip('freeTradeLuxury','贅沢品',cap.freeTradeLuxury)}</div>${footer([['影響力','influence',cap.influence],['貸付金','loans',cap.loans]])}</article>
+ <article class="summary-capitalist" data-summary-class="Capitalist">${heading('Capitalist','資本家')}${stats([metric('vp','VP',cap.vp),metric('wealth','富マーカー',cap.wealth),metric('revenue','収益',cap.revenue,'V'),metric('capital','資本',cap.capital,'V')])}${companyCounts}${companyList('Capitalist',companies,'企業')}${resources(cap)}<div class="summary-free-trade" aria-label="自由貿易区"><span>自由貿易区</span>${chip('freeTradeFood','食料',cap.freeTradeFood)}${chip('freeTradeLuxury','贅沢品',cap.freeTradeLuxury)}</div>${footer([['影響力','influence',cap.influence],['貸付金','loans',cap.loans]])}</article>
  <article class="summary-working" data-summary-class="Working">${heading('Working','労働者')}${stats([metric('vp','VP',w.vp),metric('prosperity','繁栄度',w.prosperity),metric('workerCount','労働者数',w.workerCount,'人'),metric('population','人口',w.population)])}<p class="summary-worker-counts"><span>就業 ${value('employed',employed)}</span><span>失業 ${value('unemployed',unemployed)}</span><span>組合 ${value('unions',unions.length)}</span>${committed?`<span>うち誓約中 ${value('committed',committed)}</span>`:''}</p><div class="summary-skills" aria-label="労働者の技能内訳">${Object.entries(skillCounts).map(([key,n])=>chip(key,skillLabels[key],n,'skill-'+key)).join('')}</div>${resources(w)}${footer([['資金','cash',w.cash,'V'],['影響力','influence',w.influence],['貸付金','loans',w.loans]])}</article>
  <article class="summary-middle" data-summary-class="Middle">${heading('Middle','中産階級')}<p class="summary-placeholder">表示は今後追加します</p></article>
- <article class="summary-state" data-summary-class="State">${heading('State','国家')}${stats([metric('cash','国庫',treasury.cash,'V'),metric('loans','貸付金',treasury.loans)])}<div class="summary-resources" aria-label="公共資源">${chip('health','医療',common.health,'health')}${chip('education','教育',common.education,'education')}${chip('influence','影響力',common.influence)}</div>${footer([['公共企業・操業','operating',Object.entries(r.companies).filter(([id,c])=>c.status==='built'&&c.operating==='yes'&&defs.get(id)?.class==='State').length]])}</article>
+ <article class="summary-state" data-summary-class="State">${heading('State','国家')}${stats([metric('cash','国庫',treasury.cash,'V'),metric('loans','貸付金',treasury.loans)])}${companyList('State',publicCompanies,'公共企業')}<div class="summary-resources" aria-label="公共資源">${chip('health','医療',common.health,'health')}${chip('education','教育',common.education,'education')}${chip('influence','影響力',common.influence)}</div>${footer([['公共企業・操業','operating',publicCompanies.filter(([,c])=>c.operating==='yes').length]])}</article>
  </div>`;
 }
 function render(){
