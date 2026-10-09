@@ -173,7 +173,7 @@ function reconcileUnions(r){
 function stoppedCompany(r,id){const c=r.companies[id],d=companyDefinition(r,id);check(d?.class==='Capitalist'&&c?.status==='built'&&c.operating==='no'&&d.workers.length>0&&c.slots.every(slot=>slot.owner==='empty'),'全枠が空いている自分の非稼働企業を選んでください');return d;}
 function publicTransferSlots(r,sourceId,targetId){
  const source=r.companies[sourceId],target=companyDefinition(r,targetId);
- if(def(sourceId)?.class!=='State'||source?.status!=='built'||source.operating!=='yes'||!target||source.slots.length!==target.workers.length||!source.slots.every((slot,index)=>slot.owner==='Working'&&(companyDefinition(r,sourceId).workers[index].type!=='Skilled'||companyDefinition(r,sourceId).workers[index].color===slot.skill)))return null;
+ if(def(sourceId)?.class!=='State'||source?.status!=='built'||source.operating!=='yes'||!target||source.slots.length!==target.workers.length||!source.slots.every((slot,index)=>slot.owner==='Working'&&!slot.committed&&(companyDefinition(r,sourceId).workers[index].type!=='Skilled'||companyDefinition(r,sourceId).workers[index].color===slot.skill)))return null;
  const match=(index,used,slots)=>{if(index===target.workers.length)return slots;const req=target.workers[index];for(let i=0;i<source.slots.length;i++)if(!used.includes(i)&&req.type!=='MiddleClass'&&(req.type!=='Skilled'||req.color===source.slots[i].skill)){const result=match(index+1,[...used,i],[...slots,{...source.slots[i],committed:true}]);if(result)return result;}return null;};
  return match(0,[],[]);
 }
@@ -265,6 +265,7 @@ function applyEffect(s,owner,c,plan={}){
  }
  case 'competitiveWages':{
   const d=stoppedCompany(r,plan.companyId),slots=publicTransferSlots(r,plan.sourceId,d.id);
+  check(!r.companies[plan.sourceId]?.slots.some(slot=>slot.owner!=='empty'&&slot.committed),'誓約中の労働者は移せません');
   check(slots,'必要人数と技能が一致する稼働中の公共企業を選んでください');
   const source=r.companies[plan.sourceId],sourceDef=companyDefinition(r,plan.sourceId),target=r.companies[d.id];
   source.slots=sourceDef.workers.map(req=>({owner:'empty',skill:req.color,committed:false}));source.operating='no';source.strike=false;
