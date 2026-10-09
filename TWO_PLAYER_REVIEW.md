@@ -35,3 +35,13 @@
 今回、[公式基本ルールv1.2](https://hegemonicproject.com/wp-content/uploads/2023/04/Hegemony-English-Rulebook-v1.2.pdf)を取得しようとしたがHTTP 403で取得できなかった。初期スーパーマーケットは今回のユーザー確認を反映し、それ以外の未確認の解釈と既存の出典・注記は保持した。
 
 2026-10-09 再取得：公式v1.2のURLへ再接続したが、実行環境の接続プロキシがHTTP CONNECTを403で拒否した。環境の許可先にも `hegemonicproject.com` が含まれていないことを確認した。公式サイト自体が拒否したと判定したものではない。PDFは取得できず、新版の該当記載の照合は未完了。
+
+## 添付資料で追加確認（2026-10-09）
+
+ユーザー添付「Crisis & Control - English Rulebook v1.1 - Highlighted Changes」を読んだ。全16ページで、印刷p.16に「Crisis & Control Rules v1.1」と明記されている。基本ゲームの「Hegemony English Rulebook v1.2」とは別資料。
+
+- 印刷p.11「Other Clarifications」：資本家オートマは準備フェイズに前ラウンドの企業市場をすべて捨て、４枚引く。現在の市場入れ替え処理と一致する。
+- 印刷p.11の機械化トークンへの言及は、ストライキ時の資本家オートマの賃上げ判定について。機械化トークンを購入・配置する一般条件を説明するものではない。
+- 本資料に「Competitive Wages」「Technological Progress」の個別カード説明や、誓約中の公共労働者を移動してよいという記載は見つからなかった。該当する未確認事項を、この資料だけで確認済みにはしない。
+
+機械化の新版条件の照合には基本ゲームのHegemony English Rulebook v1.2が必要。「競争力のある賃金」はカード原物・該当するFAQの確認が必要。
