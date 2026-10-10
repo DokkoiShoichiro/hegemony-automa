@@ -143,3 +143,12 @@ dialog#setupWelcome{width:min(94vw,900px)}
 #flow .free-actions .free-action-status{margin:6px 0;font-size:.75rem;line-height:1.5}
 #flow .free-actions>[data-free-action],#flow .free-actions>details>[data-free-action]{margin:8px 0}
 .free-actions-container{margin:0;padding:0}
+
+/* Vacant slots show the required skill, independently of their last occupant. */
+.worker-token.empty,.summary-slot.empty{--slot-color:#a5b1c0;color:var(--slot-color);border:1px dashed var(--slot-color);background:transparent}
+.worker-token.empty.skill-Green,.summary-slot.empty.skill-Green{--slot-color:#85ba8c}
+.worker-token.empty.skill-Blue,.summary-slot.empty.skill-Blue{--slot-color:#91bdec}
+.worker-token.empty.skill-White,.summary-slot.empty.skill-White{--slot-color:#e4e9ef}
+.worker-token.empty.skill-Orange,.summary-slot.empty.skill-Orange{--slot-color:#edb178}
+.worker-token.empty.skill-Purple,.summary-slot.empty.skill-Purple{--slot-color:#b8a0df}
+.worker-token.empty.dual-slot,.summary-slot.empty.dual-slot{border-radius:50% 3px 3px 50%}
