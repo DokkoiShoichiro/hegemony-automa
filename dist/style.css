@@ -134,3 +134,12 @@ dialog#setupWelcome{width:min(94vw,900px)}
 .free-price-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.free-price-card{border:1px solid #52647e;border-radius:8px;padding:10px;background:#0d192a;min-width:0}.free-price-card h4,.free-wage-card h4{font-size:.9rem;margin:0 0 8px}.free-price-card p,.free-wage-card p{font-size:.75rem;line-height:1.5;margin:4px 0}.free-price-card label,.free-wage-card label{font-size:.8rem;margin:8px 0 0}.free-price-card select,.free-wage-card select{padding:8px 5px}
 .free-wage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:8px}.free-wage-card{min-height:0;border-radius:8px;gap:6px}.free-wage-workers{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.free-wage-workers small{color:#ffca78}
 @media(max-width:640px){.free-price-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+#flow .free-actions{margin:14px 2px 0;padding:8px 12px;border:1px solid #aebcd0;border-radius:0;background:transparent;min-width:0}
+#flow .free-actions>summary{font-size:.95rem;font-weight:400;margin:0}
+#flow .free-actions>details{margin:0;padding:0}
+#flow .free-actions>details>summary{margin:0;font-size:.95rem;line-height:1.6}
+#flow .free-actions>details[open]>summary{margin-bottom:8px}
+#flow .free-actions .free-action-status{margin:6px 0;font-size:.75rem;line-height:1.5}
+#flow .free-actions>[data-free-action],#flow .free-actions>details>[data-free-action]{margin:8px 0}
+.free-actions-container{margin:0;padding:0}
