@@ -100,3 +100,19 @@ dialog#setupWelcome{width:min(94vw,900px)}
 .build-company-slots b,.build-company-slots small{display:block;font-size:.75rem;line-height:1.5}
 .build-company-slots small{font-size:.7rem;color:#aebcd0}.build-company-slots .worker-token{flex-shrink:0}
 .build-company-wages{border-top:1px solid #304057;padding-top:8px;color:#aebcd0}.build-company-note{color:#aebcd0}
+
+.purchase-limit{font-size:.8rem;line-height:1.6}
+.purchase-source-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px}
+.purchase-source-card{background:#0d192a;border:1px solid #52647e;border-top:4px solid #8291a7;border-radius:10px;padding:12px;min-width:0}
+.purchase-capitalist{border-top-color:#a79bde}.purchase-middle{border-top-color:#f2b76b}.purchase-state{border-top-color:#8fc7df}
+.purchase-source-card h4{font-size:.95rem;margin:0 0 8px}.purchase-source-card p{font-size:.75rem;line-height:1.5;margin:6px 0}
+.purchase-source-card table{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed}
+.purchase-source-card th,.purchase-source-card td{padding:6px 3px;border-bottom:1px solid #304057;text-align:right;overflow-wrap:anywhere}
+.purchase-source-card th:first-child{width:50%;text-align:left}.purchase-source-card thead{color:#aebcd0}.purchase-source-card tbody th{font-weight:500}
+.purchase-source-card tr.selected{background:#25344b;color:#ffd18e}
+.purchase-source-card label{font-size:.8rem;margin:8px 0}.purchase-source-card label small{font-size:.75rem}
+.purchase-source-card select,.purchase-source-card input{padding:8px;font-size:.85rem}
+.purchase-subtotal{color:#ffd18e}.purchase-note{color:#aebcd0}.purchase-foreign{margin-top:12px}.purchase-foreign>.purchase-source-card{margin-top:10px}
+.purchase-error[hidden]{display:none}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+.purchase-source-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,.7fr);gap:10px;align-items:end}
