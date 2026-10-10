@@ -87,7 +87,7 @@ function influencePlan(s,id,sides,cubes){const values=s.records.personal[id]?.va
 }
 // Political card continuations keep revealed cubes out of the bag until a choice is final.
 const POLITICAL_CLASSES=['Working','Middle','Capitalist'];
-const movementPolicies={wc_workers_movement:'2',wc_healthcare_movement:'4',wc_student_movement:'5',wc_immigration_reform:'7',cc_tap_into_new_markets:'6',cc_taxed_enough_already:'3'};
+const movementPolicies={wc_workers_movement:'2',wc_healthcare_movement:'4',wc_student_movement:'5',wc_immigration_reform:'7',mc_immigration_reform:'7',cc_tap_into_new_markets:'6',cc_taxed_enough_already:'3'};
 function politicalEffect(id){return root.PlayerCards?.effects[id]?.startsWith('politics');}
 function politicalOptions(s,owner,cardId,exclude){const fixed=movementPolicies[cardId];return Object.keys(s.positions).filter(id=>/^[1-7]$/.test(id)&&(!fixed||id===fixed)&&id!==exclude&&!s.proposals?.[id]&&!String(s.aside.policies[id]||'').startsWith('bill:'));}
 function validatePlayerPolitics(s){
@@ -335,7 +335,7 @@ function reduce(state,e){if(state.pendingPlayerCard?.kind==='politics')root.Play
   {const restore=()=>{if(s.aside.actions.STR==='strikeTokens')place(s,'actions','STR',0);for(let i=1;i<=7;i++){const id=String(i);if(s.round===5&&i===7){aside(s,'policies',id,'finalRound');continue;}if(!(id in s.aside.policies))continue;const desired=priorityDesired(s,id),d=Math.abs(s.positions[id].charCodeAt(0)-desired.charCodeAt(0));if(d)place(s,'policies',id,d-1);}};if(s.automaMode==='Both'){for(const owner of ['Working','Capitalist'])withAutoma(s,owner,restore);activateAutoma(s,'Working');}else restore();}note=`ラウンド${s.round}の準備を反映（利息・繁栄度・新規労働者・市場・カード・優先順位）`;break;
  default:throw Error('不明な操作です');
  }
- if(played){if(played.owner==='Working')s.workingBasicUsed=true;note+=`（${played.definition.name}を手札から捨て札へ）`;}
+ if(played){if(played.owner==='Working')s.workingBasicUsed=true;if(played.owner==='Middle')s.middleBasicUsed=true;note+=`（${played.definition.name}を手札から捨て札へ）`;}
  if(s.automaMode==='Both')for(const [id,p] of Object.entries(s.proposals))for(const owner of ['Working','Capitalist'])withAutoma(s,owner,()=>{aside(s,'policies',id,'bill:'+p.proposer);});
  s.log.push({at:new Date().toISOString(),turn:s.turn,type:e.type,note,event:copy(e)});storeAutoma(s);validate(s);return s;
 }

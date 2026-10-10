@@ -8,6 +8,10 @@ const skills=['Gray','Green','Blue','White','Orange','Purple'];
 const copy=x=>JSON.parse(JSON.stringify(x));
 const check=(ok,message)=>{if(!ok)throw Error(message);};
 const effects={
+ // First Middle stage: shared card families, with the Middle amounts/storage rules below.
+ mc_healthcare_benefits:'discountHealth',mc_state_scholarship:'discountEducation',mc_highlight_social_issues:'influence',
+ mc_fake_news:'politicsFake',mc_interest_groups:'politicsInterest',mc_public_opinion_polling:'politicsPolling',mc_immigration_reform:'politicsMovement',
+ mc_health_crisis:'sellHealth',mc_higher_education_program:'sellEducation',mc_public_sector_overtime:'publicOvertime',mc_investment_opportunities:'investment',
  wc_need_for_change:'politicsDouble',cc_push_political_agenda:'politicsDouble',
  wc_fake_news:'politicsFake',cc_fake_news:'politicsFake',wc_interest_groups:'politicsInterest',cc_interest_groups:'politicsInterest',
  wc_workers_movement:'politicsMovement',wc_healthcare_movement:'politicsMovement',wc_student_movement:'politicsMovement',wc_immigration_reform:'politicsMovement',cc_tap_into_new_markets:'politicsMovement',cc_taxed_enough_already:'politicsMovement',
@@ -59,7 +63,7 @@ function consume(s,e){
  check(!s.playerCards.used,'この手番のメインアクションは実行済みです');
  const owner=activeOwner(s),c=s.playerCards.classes[owner],index=c.hand.indexOf(e.cardUid);
  check(index>=0,'使用する手札のカードを選んでください');
- if(owner==='Middle')check(['middleBasic','middlePolicy'].includes(e.type),'中産階級の基本アクションではありません');else if(owner==='Working')check(['workingBasic','workingPolicy','playerCardEffect'].includes(e.type),'労働者のアクションではありません');
+ if(owner==='Middle')check(['middleBasic','middlePolicy','playerCardEffect'].includes(e.type),'中産階級のアクションではありません');else if(owner==='Working')check(['workingBasic','workingPolicy','playerCardEffect'].includes(e.type),'労働者のアクションではありません');
  else check(!['workingBasic','workingPolicy'].includes(e.type),'資本家のアクションではありません');
  c.hand.splice(index,1);c.discard.push(e.cardUid);s.playerCards.used=true;
  // workingBasic/workingPolicy perform their own legacy one-action check.
@@ -95,7 +99,7 @@ function number(value,label){check(Number.isSafeInteger(value)&&value>=0,`${labe
 function known(value,label){check(Number.isSafeInteger(value)&&value>=0,`${label}が未確認です`);return value;}
 function payState(r,amount){const state=r.personal.State.values;known(state.cash,'国庫');known(state.loans,'国家の貸付金');while(state.cash<amount){state.cash+=50;state.loans++;}state.cash-=amount;}
 function payCap(cap,amount,capitalOnly=false){known(cap.capital,'資本');known(cap.loans,'資本家の貸付金');if(!capitalOnly)known(cap.revenue,'収入');while(cap.capital+(capitalOnly?0:cap.revenue)<amount){cap.capital+=50;cap.loans++;}if(capitalOnly)cap.capital-=amount;else{const revenue=Math.min(cap.revenue,amount);cap.revenue-=revenue;cap.capital-=amount-revenue;}}
-function payWorking(w,amount){check(known(w.cash,'労働者の資金')>=amount,'支払い資金が足りません');w.cash-=amount;}
+function payWorking(w,amount){check(known(w.cash,'支払い資金')>=amount,'支払い資金が足りません');w.cash-=amount;}
 const defs=()=>[...(root.WCA_COMPANIES||[]),...(root.WCA_EXTRA_COMPANIES||[])];
 const def=id=>defs().find(d=>d.id===id);
 const built=(r,owner)=>Object.entries(r.companies).filter(([id,c])=>c.status==='built'&&def(id)?.class===owner);
@@ -197,15 +201,15 @@ function buildCompany(records,positions,plan,half=false,investmentMode=null){
  if(investmentMode==='search')payCap(records.personal.Capitalist.values,10);
  return root.WCARecords.applyCapitalistBuild(records,d.id,value,common,{capitalistCost:half?Math.ceil(d.cost/2):d.cost-discount,stateCost:half?Math.floor(d.cost/2):0,discount});
 }
-function purchase(r,s,resource,source,qty,discount=false,subsidy=false){
- const w=r.personal.Working.values;number(qty,'購入数');check(qty<=w.population,'購入数は人口までです');
+function purchase(r,s,resource,source,qty,discount=false,subsidy=false,owner='Working'){
+ const w=r.personal[owner].values;number(qty,'購入数');check(qty<=w.population,'購入数は人口までです');
  let stock,price,seller;
  if(source==='State'){
   stock=r.common.values;price=resource==='influence'?5:({A:0,B:5,C:10})[s.positions[resource==='health'?4:5]];seller=r.personal.State.values;
  }else{check(source==='Capitalist'&&['food','health','education','luxury'].includes(resource),'購入先が不正です');stock=r.personal.Capitalist.values;price=known(stock[resource+'Price'],'販売価格');seller=stock;}
  check(known(stock[resource],'販売元在庫')>=qty,'販売元の在庫が足りません');
  const total=price*qty,cost=discount?Math.ceil(total/2):total;
- payWorking(w,cost);stock[resource]-=qty;w[resource]=known(w[resource],resource)+qty;
+ payWorking(w,cost);stock[resource]-=qty;const destination=owner==='Middle'&&resource!=='influence'?'consumed'+resource[0].toUpperCase()+resource.slice(1):resource;w[destination]=known(w[destination],resource)+qty;
  if(subsidy)payState(r,total-cost);
  const key=source==='State'?'cash':'revenue';seller[key]=known(seller[key],'販売収入')+(subsidy?total:cost);
  return {cost,qty};
@@ -221,7 +225,7 @@ function revealExport(s,played){
 }
 function applyEffect(s,owner,c,plan={}){
  const a=availability(s,owner,c.id);check(a.ready,a.reason);
- check(s.records.participants.Middle==='absent'&&s.records.participants.State==='absent','この段階のプレイヤーカード効果は2人戦に対応しています');
+ check(owner==='Middle'?root.MiddleClass?.isThree(s.records):s.records.participants.Middle==='absent'&&s.records.participants.State==='absent','この階級のカード効果は現在の人数設定に対応していません');
  let production=null,machinery=null,companySearch=null,tradeEffect=null,r=copy(s.records);const w=r.personal.Working.values,cap=r.personal.Capitalist.values,state=r.personal.State.values;
  const bases={unemployed_workers:unemployed(r),assigned_workers:employed(r),companies_owned:built(r,'Capitalist').length};
  const addVotes=(who,n)=>{const key=voteKeys[who];r.common.values[key]=Math.max(0,known(r.common.values[key],'袋の外の投票駒')-n);};
@@ -272,6 +276,14 @@ function applyEffect(s,owner,c,plan={}){
   target.wage='L3';target.slots=slots;target.operating='yes';reconcileUnions(r);break;
  }
  case 'investment':{
+  if(owner==='Middle'){
+   check(['discount','search'].includes(plan.mode),'市場の割引設立か企業山札の検索を選んでください');
+   const d=def(plan.companyId),company=r.companies[plan.companyId],search=plan.mode==='search';
+   check(d?.class==='Middle'&&company?.status===(search?'unbuilt':'market')&&(!search||root.MiddleClass.candidates(r).some(x=>x.id===d.id)),'中産階級の企業市場または企業山札から選んでください');
+   if(search)company.status='market';
+   r=root.MiddleClass.basic(r,s.positions,{action:'BC',id:d.id,workers:plan.workers,wage:plan.wage,employee:plan.employee},{buildCost:search?d.cost+8:Math.max(0,d.cost-8)});
+   if(search)companySearch={companyId:d.id,shuffleRequired:true};break;
+  }
   check(['discount','search'].includes(plan.mode),'市場の割引設立か企業山札の検索を選んでください');
   r=buildCompany(r,s.positions,plan,false,plan.mode);
   if(plan.mode==='search')companySearch={companyId:plan.companyId,shuffleRequired:true};
@@ -308,21 +320,21 @@ function applyEffect(s,owner,c,plan={}){
   const d=def(plan.companyId),company=r.companies[plan.companyId],publicCard=a.effect==='publicOvertime';
   check(d?.class===(publicCard?'State':'Capitalist')&&company?.status==='built'&&company.operating==='yes','稼働中の'+(publicCard?'公共':'自分の')+'企業を選んでください');
   check(publicCard||d.workers.length>0&&!d.tags?.includes('Automated'),'追加シフトでは自動化企業を選べません');
-  check(company.slots.length>0&&company.slots.every(slot=>slot.owner==='Working'),'配置された労働者を確認してください');
+  check(company.slots.length>0&&company.slots.every(slot=>publicCard&&owner==='Middle'?['Working','Middle'].includes(slot.owner):slot.owner==='Working'),'配置された労働者を確認してください');
   check(!company.strike||company.wage==='L3','ストライキ中の企業は生産できません');
   check(Number.isSafeInteger(d.wages?.[company.wage]),'賃金を確認してください');
-  known(w.cash,'労働者の資金');if(publicCard){known(state.cash,'国庫');known(state.loans,'国家の貸付金');}else{known(cap.revenue,'収入');known(cap.capital,'資本');known(cap.loans,'資本家の貸付金');}
+  known((publicCard?r.personal[owner].values:w).cash,'プレイヤーの資金');if(publicCard){known(state.cash,'国庫');known(state.loans,'国家の貸付金');}else{known(cap.revenue,'収入');known(cap.capital,'資本');known(cap.loans,'資本家の貸付金');}
   const key=d.production.resource.toLowerCase();known(publicCard?r.common.values[key]:cap[key],'生産先の在庫');
   if(!publicCard){known(cap[key+'Storage'],'倉庫');if(['food','luxury'].includes(key))known(cap[key==='food'?'freeTradeFood':'freeTradeLuxury'],'自由貿易エリアの在庫');}
   const result=root.WCARecords.applyCompanyProduction(r,d.id);r=result.records;
   production={companyId:d.id,resource:key,amount:result.preview.amount,wage:result.preview.wage,storage:result.storage};
-  if(publicCard&&plan.qty!==undefined)purchase(r,s,key,'State',plan.qty);
+  if(publicCard&&plan.qty!==undefined)purchase(r,s,key,'State',plan.qty,false,false,owner);
   break;
  }
  case 'housing':check(!plan.target||plan.target==='Capitalist','2人戦では資本家への支払いを選んでください');payWorking(w,20);cap.revenue=known(cap.revenue,'収入')+20;w.vp=known(w.vp,'VP')+5;break;
- case 'discountHealth':purchase(r,s,'health','State',plan.qty,true);break;
- case 'discountEducation':purchase(r,s,'education','State',plan.qty,true);break;
- case 'influence':purchase(r,s,'influence','State',3);break;
+ case 'discountHealth':purchase(r,s,'health','State',plan.qty,true,false,owner);break;
+ case 'discountEducation':purchase(r,s,'education','State',plan.qty,true,false,owner);break;
+ case 'influence':purchase(r,s,'influence','State',3,false,false,owner);break;
  case 'tourism':purchase(r,s,'luxury','Capitalist',plan.qty,true,true);break;
  case 'populationVotes':addVotes('Working',known(w.population,'人口'));break;
  case 'specialization':{
@@ -350,9 +362,9 @@ function applyEffect(s,owner,c,plan={}){
   payCap(cap,count*8);w.cash=known(w.cash,'資金')+count*8;break;
  }
  case 'sellHealth':case 'sellEducation':case 'sellLuxury':{
-  const resource={sellHealth:'health',sellEducation:'education',sellLuxury:'luxury'}[a.effect],limit=resource==='luxury'?6:9,qty=number(plan.qty,'売却数');
-  check(qty<=limit&&known(cap[resource],'売却在庫')>=qty,'売却数が上限または在庫を超えています');
-  payState(r,qty*10);cap[resource]-=qty;cap.revenue=known(cap.revenue,'収入')+qty*10;
+  const resource={sellHealth:'health',sellEducation:'education',sellLuxury:'luxury'}[a.effect],limit=owner==='Middle'||resource==='luxury'?6:9,qty=number(plan.qty,'売却数'),seller=r.personal[owner].values;
+  check(qty<=limit&&known(seller[resource],'売却在庫')>=qty,'売却数が上限または在庫を超えています');
+  payState(r,qty*10);seller[resource]-=qty;const income=owner==='Middle'?'cash':'revenue';seller[income]=known(seller[income],'販売収入')+qty*10;
   const stock=resource==='luxury'?state:r.common.values;stock[resource]=known(stock[resource],'国家在庫')+qty;
   bases[resource==='health'?'healthcare_sold_to_state':resource==='education'?'education_sold_to_state':'luxury_sold_to_state']=qty;
   if(resource==='luxury')cap.influence=known(cap.influence,'影響力')+1;break;
@@ -382,8 +394,8 @@ function applyEffect(s,owner,c,plan={}){
  default:throw Error('このカード効果は未対応です');
  }
  if(['specialization','signingBonus','industrialization','businessExpansion','investment','deregulation','employmentGrant','foreignRecruitment','competitiveWages'].includes(a.effect)&&r.common.tokens.demonstration&&!root.WCARecords.demonstrationStatus(r).eligible)r.common.tokens.demonstration=false;
- // Legitimacy changes belong to the State player's tracks. In two-player
- // games the State is absent, so we preserve the bonus but do not apply it.
+ // Legitimacy changes belong to the State player's tracks. In the supported
+ // two- and three-player modes the State is absent: record but do not apply the bonus.
  const legitimacy=bonusAmount(c.bonus,bases);
  s.records=root.WCARecords.validate(r);
  s.lastPlayerCard={id:c.id,owner,production,machinery,companySearch,tradeEffect,legitimacy,legitimacyApplied:false,source:'ユーザー提供 v6 JSON／基本ルール v1.2：正当性は国家参加時のみ'};
