@@ -163,3 +163,11 @@ dialog#setupWelcome{width:min(94vw,900px)}
 .worker-token:not(.automated),.worker-token.empty,.summary-slot,.summary-slot.empty,.compact-worker-icon{background:var(--skill-tint);color:var(--skill-color)}
 .summary-slot{border-color:var(--skill-color)}
 .summary-slot .compact-worker-icon{background:transparent}
+
+/* Company cards share the compact worker icons used in the board summary. */
+.worker-token:not(.automated){position:relative;min-width:24px;width:24px;height:24px;padding:0;font-size:.6rem;line-height:1.4;border:1px solid var(--skill-color)}
+.worker-token.empty{border-style:dashed}
+.worker-token .compact-worker-icon{width:22px;height:22px;border:0;background:transparent}
+.worker-token .compact-worker-icon svg{width:17px;height:17px}
+.worker-token.committed{transform:none;border-color:var(--skill-color)}
+.free-wage-workers{display:flex;flex-wrap:wrap;gap:4px}
