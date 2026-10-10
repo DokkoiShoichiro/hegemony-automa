@@ -116,3 +116,16 @@ dialog#setupWelcome{width:min(94vw,900px)}
 .purchase-error[hidden]{display:none}.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 .purchase-source-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,.7fr);gap:10px;align-items:end}
+
+.compact-worker-icon{--worker-color:#a5b1c0;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;flex-shrink:0;border:1px solid var(--worker-color);border-radius:50%;background:#17263a;color:var(--worker-color)}
+.compact-worker-icon svg{width:18px;height:18px;fill:currentColor}.compact-worker-icon.worker-icon-middle{border-radius:4px}
+.compact-worker-icon.skill-Green{--worker-color:#85ba8c}.compact-worker-icon.skill-Blue{--worker-color:#91bdec}.compact-worker-icon.skill-White{--worker-color:#e4e9ef}.compact-worker-icon.skill-Orange{--worker-color:#edb178}.compact-worker-icon.skill-Purple{--worker-color:#b8a0df}
+.summary-company-list{margin:8px 0}.summary-company-list h3{font-size:.7rem;font-weight:500;color:#c1cfdf;margin:0 0 4px}
+.summary-company-slots{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:3px}.summary-slot-tokens{margin:0}
+.summary-slot{display:inline-flex;align-items:center;justify-content:center;position:relative;width:24px;height:24px;border:1px solid #52647e;border-radius:50%;padding:0;border-left-width:1px}
+.summary-slot.middle{border-radius:4px}.summary-slot .compact-worker-icon{width:22px;height:22px;border:0;background:transparent}.summary-slot .compact-worker-icon svg{width:17px;height:17px}.summary-commit{position:absolute;right:-3px;top:-5px;color:#ffca78;font-size:.65rem;line-height:1;text-shadow:0 0 2px #0d1420}.summary-grid .summary-slot-legend{font-size:.58rem;line-height:1.5}
+.unemployed-board{padding:14px}.unemployed-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.unemployed-group{min-width:0;margin:0;padding:8px;border:1px solid #344761;border-radius:8px}.unemployed-group legend{font-size:.8rem;color:#c1cfdf;padding:0 4px}
+.unemployed-skills{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}.unemployed-skills label{margin:0;min-width:0;text-align:center}.unemployed-skills label>span{display:flex;align-items:center;justify-content:center;gap:3px;margin-bottom:4px}.unemployed-skills small{font-size:.65rem}.unemployed-skills input{padding:5px 3px;font-size:.9rem;text-align:center;height:34px;min-width:0}.unemployed-skills .compact-worker-icon{width:22px;height:22px}
+.unemployed-save{display:flex;align-items:center;gap:8px;margin-top:10px}.unemployed-save button{font-size:.8rem;padding:8px 12px}.unemployed-board>p{font-size:.7rem;line-height:1.5;margin:6px 0 0}
+@media(max-width:640px){.unemployed-skills{grid-template-columns:repeat(3,minmax(0,1fr))}}

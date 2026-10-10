@@ -70,7 +70,6 @@ function priorityBoardHtml(view,label,active=false){const rowIds=[...new Set([..
 function renderBoardSummary(){
  const panel=$('boardSummary'),r=state.records;
  panel.hidden=!r;if(!r){panel.innerHTML='';return;}
- const opened=new Set([...panel.querySelectorAll('[data-summary-companies][open]')].map(el=>el.dataset.summaryCompanies));
  const number=n=>Number.isFinite(n)?String(n):'—';
  const value=(key,n,unit='')=>`<strong data-summary-value="${key}">${number(n)}${unit?`<small>${unit}</small>`:''}</strong>`;
  const metric=(key,label,n,unit='')=>`<div><dt>${label}</dt><dd>${value(key,n,unit)}</dd></div>`;
@@ -84,15 +83,15 @@ function renderBoardSummary(){
  const companies=ownedCompanies('Capitalist'),publicCompanies=ownedCompanies('State');
  const active=companies.filter(([,c])=>c.operating==='yes').length,inactive=companies.filter(([,c])=>c.operating==='no').length,unknown=companies.length-active-inactive,machinery=companies.filter(([,c])=>c.machinery).length;
  const companyCounts=`<p class="summary-company-counts"><span>操業 <b data-summary-value="operating">${active}</b></span><span>未操業 <b data-summary-value="inactive">${inactive}</b></span><span>機械化 <b data-summary-value="machinery">${machinery}</b></span>${unknown?`<span>未確認 ${unknown}</span>`:''}</p>`;
- const companySlots=c=>{
+ const companySlots=(c,d)=>{
   if(!c.slots.length)return '<div class="summary-company-slots"><span class="summary-slot-count">自動化・労働者スロットなし</span></div>';
   const filled=c.slots.filter(slot=>['Working','Middle'].includes(slot.owner)).length,unknown=c.slots.filter(slot=>slot.owner==='unknown').length;
   return `<div class="summary-company-slots" aria-label="労働者スロット"><span class="summary-slot-count">配置 ${filled}/${c.slots.length}${unknown?` · 未確認 ${unknown}`:''}</span><div class="summary-slot-tokens">${c.slots.map((slot,i)=>{
-   const empty=slot.owner==='empty',unconfirmed=slot.owner==='unknown',skill=skillLabels[slot.skill]||'未確認',label=`${i+1}枠：${empty?'空き':unconfirmed?'未確認':`${classLabels[slot.owner]}・${skill}${slot.committed?'・誓約中':''}`}`;
-   return `<span class="summary-slot ${empty||unconfirmed?'empty':''} skill-${esc(slot.skill)} ${slot.owner==='Middle'?'middle':''}" data-summary-slot="${i}" aria-label="${esc(label)}" title="${esc(label)}">${empty?'空き':unconfirmed?'？':`${slot.owner==='Middle'?'中・':''}${esc(skill)}${slot.committed?'◆':''}`}</span>`;
+   const empty=slot.owner==='empty',unconfirmed=slot.owner==='unknown',middle=slot.owner==='Middle'||d?.workers[i]?.type==='MiddleClass',skill=skillLabels[slot.skill]||'未確認',label=`${i+1}枠：${empty?'空き':unconfirmed?'未確認':`${classLabels[slot.owner]}・${skill}${slot.committed?'・誓約中':''}`}`;
+   return `<span class="summary-slot ${empty||unconfirmed?'empty':''} skill-${esc(slot.skill)} ${middle?'middle':''}" data-summary-slot="${i}" aria-label="${esc(label)}" title="${esc(label)}">${empty?'空':unconfirmed?'？':WCARecords.workerIcon(slot.owner,slot.skill)}${slot.committed?'<small class="summary-commit" aria-hidden="true">◆</small>':''}</span>`;
   }).join('')}</div></div>`;
  };
- const companyList=(owner,companies,label)=>companies.length?`<details data-summary-companies="${owner}" ${opened.has(owner)?'open':''}><summary>${label}${companies.length}社の内訳</summary><ul>${companies.map(([id,c])=>`<li data-summary-company="${esc(id)}"><div class="summary-company-heading"><span>${esc(WCARecords.companyName(defs.get(id)))}</span><span class="summary-company-state ${c.operating==='yes'?'operating':''}">${({yes:'操業',no:'未操業',unknown:'未確認'})[c.operating]}${c.machinery?' · 機械化':''}${c.strike?' · ストライキ':''}</span></div>${companySlots(c)}</li>`).join('')}</ul><p class="summary-slot-legend">◆ 誓約中 · 中＝中産階級</p></details>`:`<p class="summary-note">建設済みの${label}なし</p>`;
+ const companyList=(owner,companies,label)=>companies.length?`<section class="summary-company-list" data-summary-companies="${owner}"><h3>${label}${companies.length}社の内訳</h3><ul>${companies.map(([id,c])=>`<li data-summary-company="${esc(id)}"><div class="summary-company-heading"><span>${esc(WCARecords.companyName(defs.get(id)))}</span><span class="summary-company-state ${c.operating==='yes'?'operating':''}">${({yes:'操業',no:'未操業',unknown:'未確認'})[c.operating]}${c.machinery?' · 機械化':''}${c.strike?' · ストライキ':''}</span></div>${companySlots(c,defs.get(id))}</li>`).join('')}</ul><p class="summary-slot-legend">○ 労働者 · □ 中産階級 · ◆ 誓約中</p></section>`:`<p class="summary-note">建設済みの${label}なし</p>`;
  const cap=r.personal.Capitalist.values,w=r.personal.Working.values,treasury=r.personal.State.values,common=r.common.values;
  const skillCounts=Object.fromEntries(Object.keys(skillLabels).map(key=>[key,Number(r.common.unemployed?.Working?.[key]||0)]));
  let employed=0,committed=0;for(const c of Object.values(r.companies))if(c.status==='built')for(const slot of c.slots)if(slot.owner==='Working'){skillCounts[slot.skill]++;employed++;if(slot.committed)committed++;}
