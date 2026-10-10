@@ -87,3 +87,16 @@ dialog#setupWelcome{width:min(94vw,900px)}
 .hand-grid{gap:6px;margin:8px 0}.hand-choice{margin:0;padding:8px;gap:6px;align-items:center;min-height:54px;font-size:.78rem;line-height:1.35}.hand-choice>span{min-width:0}.hand-choice input{width:16px;height:16px;margin:0;padding:0}.hand-choice small{margin-top:3px;font-size:.62rem}.hand-instruction{margin:6px 0;font-size:.78rem;line-height:1.5}.player-card-summary{padding:9px 10px;margin:8px 0;border-left:3px solid #ffb454;background:#0d192a;border-radius:4px}.player-card-summary h3{margin:0 0 5px;font-size:.9rem}.player-card-summary p{margin:5px 0;font-size:.82rem;line-height:1.5}.player-card-summary h3 .card-copy-label{display:inline;font-weight:400}.player-card-summary .notice{padding:7px;font-size:.72rem}.hand-help,.discard-cards{font-size:.75rem}.hand-help{margin-top:8px}
 
 .summary-resource-label{font-size:.65rem;line-height:1.4;color:#aebcd0;margin:7px 0 4px}
+
+.build-company-card{min-height:0;margin:10px 0 16px;padding:12px;border-radius:10px;gap:8px;overflow-wrap:anywhere}
+.build-company-card .company-topline{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;font-size:.75rem}
+.build-company-card h4{font-size:1rem;line-height:1.4;margin:0}
+.build-company-card p{margin:0;font-size:.78rem;line-height:1.5}
+.build-company-production{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.8rem}
+.build-company-card .build-company-production strong{font-size:1rem;color:#ffd18e;margin:0}
+.build-company-bonus{color:#c9d7e8}.build-company-slot-heading{color:#aebcd0}
+.build-company-slots{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px}
+.build-company-slots li{display:flex;align-items:center;gap:8px;background:#0d192a;border:1px solid #304057;border-radius:7px;padding:8px;min-width:0}
+.build-company-slots b,.build-company-slots small{display:block;font-size:.75rem;line-height:1.5}
+.build-company-slots small{font-size:.7rem;color:#aebcd0}.build-company-slots .worker-token{flex-shrink:0}
+.build-company-wages{border-top:1px solid #304057;padding-top:8px;color:#aebcd0}.build-company-note{color:#aebcd0}
