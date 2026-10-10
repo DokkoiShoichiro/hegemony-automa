@@ -114,7 +114,8 @@ function render(){
  if(state.playerCards&&state.phase==='player'){document.querySelector('header h1').textContent=`${state.automaClass==='Capitalist'?'労働者':'資本家'}プレイヤーの手番`;document.querySelector('header .badge').textContent='PLAYER';}
  $('counter').textContent=`ラウンド ${state.round} / 5 · 手番 ${state.turn}`;$('undo').disabled=!history.length||blocked;
  const priorityViews=state.automaMode==='Both'?[['Working',state.automaStates.Working,'労働者（WCA）'],['Capitalist',state.automaStates.Capitalist,'資本家（CCA）']]:[[state.automaClass,state,`${automa}オートマ`]];
- $('board').innerHTML=priorityViews.map(([id,view,label])=>priorityBoardHtml(view,label,id===state.automaClass)).join('');
+ const automaTurn=['start','card','checks','action','end'].includes(state.phase);
+ $('board').innerHTML=priorityViews.map(([id,view,label])=>priorityBoardHtml(view,label,automaTurn&&id===state.automaClass)).join('');
  $('aside').textContent=state.automaMode==='Both'?'両オートマは別々の優先順位カードとAI山札を使用します。':`脇に置く：${Object.keys(state.aside.actions).join('・')||'行動なし'} ／ 政策 ${Object.keys(state.aside.policies).join('・')||'なし'}${state.round===5?'（政策7はゲームから除外）':''}`;
  const ranked=E.rank(state,'actions');$('leaders').innerHTML=`${automa}の最優先 <strong>${names[ranked[0]]||'なし'}</strong><br><span class="muted">次点 ${names[ranked[1]]||'なし'} ／ 政策 ${E.rank(state,'policies')[0]||'なし'}</span>`;
  const phaseLabels={start:'開始',card:'カード',checks:'チェック',action:'行動',end:'終了',player:state.automaClass==='Capitalist'?'労働者':'資本家',production:'生産',election:'投票',scoring:'得点',preparation:'準備',gameEnd:'最終得点',finished:'終了'};
