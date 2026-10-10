@@ -262,6 +262,7 @@ function reduce(state,e){if(state.pendingPlayerCard?.kind==='politics')root.Play
   }
   if(e.first==='no'&&selected!=='PRESSURE')compress(s,'actions');
   if(immediate.length)beginElection(s,immediate,'immediate','end');else s.phase='end';note=`${selected} 実行。${note}`;break;}
+ case 'workingLoan':requireThat(s.phase==='player'&&s.automaClass==='Capitalist'&&s.records?.participants.Working==='human','労働者プレイヤーの手番ではありません');s.records=root.WCARecords.applyWorkingLoan(s.records);note='労働者が資金50で貸付金1枚を返済（フリーアクション）';break;
  case 'workingSwap':requireThat(s.phase==='player'&&s.automaClass==='Capitalist'&&s.records?.participants.Working==='human','労働者プレイヤーの手番ではありません');s.records=root.WCARecords.applyWorkingSwap(s.records,e.plan);note='労働者を入れ替え（フリーアクション）';break;
  case 'freeAction':requireThat(s.records&&(s.phase==='end'||s.phase==='player'&&s.automaClass==='Capitalist'&&s.records.participants.Working==='human'),'労働者のフリーアクションを実行できる手番ではありません');s.records=root.WCARecords.applyFreeAction(s.records,e.resource,e.upgrade);note=`${e.resource}を使用して繁栄度を上昇`;break;
  case 'end':requireThat(s.phase==='end','終了処理ではありません');requireThat(!s.records||!root.WCARecords.nextFreeResource(s.records),'終了時の資源使用を完了してください');s.card=null;s.index=0;if(s.automaMode==='Both'){if(root.MiddleClass?.isThree(s.records)){s.phase='player';s.middleBasicUsed=false;note='労働者オートマの手番を終了し、中産階級プレイヤーへ';}else{activateAutoma(s,'Capitalist');s.phase='start';note='労働者オートマの手番を終了し、資本家オートマへ';}}else{s.phase='player';note='労働者オートマの手番を終了';}break;
