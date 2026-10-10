@@ -37,6 +37,13 @@ function setup(base,e,workingCards,middleCards){
  const market=e.middleMarket||randomMarket(r);check(Array.isArray(market)&&market.length===3&&new Set(market).size===3&&market.every(id=>candidates(r).some(d=>d.id===id)),'中産階級の市場には山札から異なる3枚を選んでください');for(const id of market)r.companies[id].status='market';
  r.setup.middleMarket=[...market];r.setup.middleSkill=chosen;r.setup.immigrationCards=copy(workingCards);r.setup.middleImmigrationCards=copy(middleCards);r.setup.pending=r.setup.pending.filter(x=>!x.includes('移民カード'));delete r.setup.immigrationCard;return R.validate(r);
 }
+function assignmentChoices(r,id,index,reassign=true){
+ const d=definition(r,id),c=r.companies[id],req=d?.workers[index];
+ if(c?.status!=='built'||!req||d.class==='Working'||d.class==='Middle'&&req.type!=='MiddleClass')return [];
+ // External companies cannot mix classes. Occupied Middle slots may be freed by another move in the same batch.
+ if(c.slots[index].committed||d.class!=='Middle'&&c.slots.some(x=>x.owner==='Working'))return [];
+ return workers(r,reassign).filter(w=>R.workerFits(req,'Middle',w.skill,d.class));
+}
 function workers(r,reassign=true){const out=skills.filter(k=>r.common.unemployed.Middle[k]>0).map(skill=>({ref:'u:'+skill,skill,count:r.common.unemployed.Middle[skill]}));if(reassign)for(const [id,c] of Object.entries(r.companies))if(c.status==='built')c.slots.forEach((x,i)=>{if(x.owner==='Middle'&&!x.committed)out.push({ref:`c:${id}:${i}`,skill:x.skill,count:1});});return out;}
 function take(r,ref){check(typeof ref==='string','労働者を選んでください');const bits=ref.split(':');if(bits[0]==='u'){const skill=bits[1];check(skills.includes(skill)&&r.common.unemployed.Middle[skill]>0,'失業労働者が足りません');r.common.unemployed.Middle[skill]--;return {owner:'Middle',skill,committed:true};}const c=r.companies[bits[1]],i=Number(bits[2]),x=c?.slots[i];check(bits[0]==='c'&&c?.status==='built'&&x?.owner==='Middle'&&!x.committed,'移動できない労働者です');c.slots[i]={owner:'empty',skill:x.skill,committed:false};return {...x,committed:true};}
 function fits(req,x){return x.owner==='Middle'&&(req.type==='Unskilled'||req.color===x.skill);}
@@ -89,5 +96,5 @@ R.applyGameEnd=(r,p)=>{const result=original.applyGameEnd(r,p);if(isThree(r)){co
 R.applyPreparation=(r,p,plan)=>{let result=original.applyPreparation(r,p,{...plan,immigrationCards:plan.immigrationCards});if(isThree(r)){// The base implementation adds the Middle worker from Working's cards;
  // undo that old placeholder, then use Middle's independently drawn cards.
  for(const c of plan.immigrationCards||[])result.records.common.unemployed.Middle[c.Middle]--;result.records=prepare(result.records,p,plan);result.preview.Middle={immigrationCards:copy(plan.middleImmigrationCards),skill:plan.middleSkill};}return result;};
-root.MiddleClass={assignWorkers,purchase,isThree,sync,validate,setup,workers,definition,prosperity,gainProsperity,store,basic,free,foodPreview,foodNeeds,tax,score,final,prepare,candidates,randomMarket,source,immediate};
+root.MiddleClass={assignmentChoices,assignWorkers,purchase,isThree,sync,validate,setup,workers,definition,prosperity,gainProsperity,store,basic,free,foodPreview,foodNeeds,tax,score,final,prepare,candidates,randomMarket,source,immediate};
 })(globalThis);

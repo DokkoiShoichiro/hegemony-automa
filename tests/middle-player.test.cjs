@@ -29,3 +29,20 @@ test('Middle initial workers stand uncommitted; later assignment commits them un
  r.companies.mc_training_center.status='built';r.common.unemployed.Middle.Orange=1;const n=M.basic(r,{2:'B'},{action:'AW',moves:[{worker:'c:state_technical_university_init3:0',companyId:'mc_training_center',index:0},{worker:'u:Orange',companyId:'mc_training_center',index:1}]});assert(n.companies.mc_training_center.slots.every(x=>x.owner==='Middle'&&x.committed));assert(!M.workers(n).some(x=>x.ref.startsWith('c:mc_training_center:')));assert.throws(()=>M.basic(n,{2:'B'},{action:'AW',moves:[{worker:'c:mc_training_center:0',companyId:'state_technical_university_init3',index:0}]}),/移動できない/);
  const produced=R.applyProduction(n).records;assert(produced.companies.mc_training_center.slots.every(x=>!x.committed));assert.equal(M.workers(produced).filter(x=>x.ref.startsWith('c:mc_training_center:')).length,2);
 });
+test('assignment candidates obey specialized slots, class, commitment and policy restrictions',()=>{
+ const r=setup().records;
+ for(const skill of ['Gray','Green','Blue','White','Orange','Purple'])r.common.unemployed.Middle[skill]=1;
+ const choices=(id,i,reassign=true)=>M.assignmentChoices(r,id,i,reassign);
+ assert.deepEqual(choices('mc_doctors_office_init',0,false).map(w=>w.skill),['White']);
+ assert.deepEqual(choices('mc_convenience_store_init',0,false).map(w=>w.skill),['Green']);
+ assert.deepEqual(choices('mc_doctors_office_init',1),[]);
+ assert.deepEqual(choices('cc_supermarket_init',0),[]); // occupied by Working
+ assert.deepEqual(choices('',0),[]);
+ r.companies.cc_shopping_mall_init.slots[0].committed=true;
+ assert.deepEqual(choices('cc_shopping_mall_init',0),[]);
+ assert.equal(choices('cc_shopping_mall_init',1,false).length,6); // any skill in unskilled slot
+ assert(choices('cc_shopping_mall_init',1).some(w=>w.ref==='c:mc_doctors_office_init:0'));
+ assert(!choices('cc_shopping_mall_init',1).some(w=>w.ref==='c:cc_shopping_mall_init:0'));
+ r.common.unemployed.Middle.White=0;
+ assert.deepEqual(choices('mc_doctors_office_init',0,false),[]);
+});
