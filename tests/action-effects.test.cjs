@@ -30,3 +30,23 @@ test('labor policy raises illegal wages without committing workers and keeps abs
 test('standard AW exhaustively forms a union within the three-piece limit',()=>{const s=actionState('AW');s.records.companies.state_local_tv_init.slots[0]={owner:'Working',skill:'Purple',committed:false};s.records.companies.state_local_tv_init.slots[1]={owner:'Working',skill:'Gray',committed:false};s.records.companies.state_local_tv_init.operating='yes';const c=s.records.companies.cc_radio_station;c.status='built';c.operating='no';c.slots.forEach(x=>{x.owner='empty';x.committed=false;});s.records.common.unemployed.Working.Purple=2;s.records.common.unemployed.Working.Gray=2;const v=J.evaluateAction(s,'AW');assert.equal(v.feasible,true);assert.match(v.summary,/労働組合を1個設立/);assert.equal(v.plan.reassignment.unions.Media,true);const n=E.reduce(s,{type:'action',first:'yes',plan:v.plan});assert.equal(n.records.personal.Working.unions.Media,true);assert.equal(n.records.companies.cc_radio_station.slots.every(x=>x.owner==='Working'),true);});
 
 test('the seventh tracked strike token automatically sets STR aside',()=>{const s=actionState('STR');s.positions[2]='C';const built=Object.entries(s.records.companies).filter(([,c])=>c.status==='built');for(const [,c] of built.slice(0,5))c.strike=true;for(const [,c] of built.slice(5)){c.strike=false;c.slots.forEach(x=>{x.committed=false;if(x.owner==='empty'){x.owner='Working';x.skill='Gray';}});c.operating='yes';c.wage='L1';}const n=E.reduce(s,{type:'action',first:'yes',plan:{action:'STR',companyIds:built.slice(5,7).map(([id])=>id)}});assert.equal(Object.values(n.records.companies).filter(c=>c.strike).length,7);assert.equal(n.aside.actions.STR,'strikeTokens');});
+
+const unionSkills={Food:'Green',Luxury:'Blue',Health:'White',Education:'Orange',Media:'Purple'};
+function supportedUnionState(industry){
+ const s=actionState('AW');
+ for(const c of Object.values(s.records.companies)){c.status='unbuilt';c.operating='no';c.strike=false;c.slots.forEach(x=>{x.owner='empty';x.committed=false;});}
+ const ids={Food:['cc_supermarket_init','cc_vegetable_farm'],Luxury:['cc_shopping_mall_init','cc_shopping_mall_pool'],Health:['cc_clinic_init','cc_clinic_pool'],Education:['cc_college_init','cc_college_pool'],Media:['cc_radio_station','cc_lobbying_firm']}[industry];
+ for(const id of ids){const c=s.records.companies[id];c.status='built';c.operating='yes';c.slots.forEach(x=>x.owner='Working');}
+ s.records.common.unemployed.Working={Gray:3,Green:0,Blue:0,White:0,Orange:0,Purple:0};return s;
+}
+for(const [industry,skill] of Object.entries(unionSkills))test(`Working automa ${industry} union requires one separate matching skilled worker`,()=>{
+ const s=supportedUnionState(industry),wrong=skill==='Green'?'Blue':'Green';s.records.common.unemployed.Working[wrong]=1;
+ assert.equal(J.evaluateAction(s,'AW').feasible,false,'four employed workers, unskilled workers and a different skill cannot establish this union');
+ s.records.common.unemployed.Working[skill]=1;const count=WCARecords.workingWorkerCount(s.records),v=J.evaluateAction(s,'AW');assert.equal(v.feasible,true);assert.equal(v.plan.reassignment.unions[industry],true);assert.match(JSON.stringify(v.targets),/熟練労働者/);
+ const n=E.reduce(s,{type:'action',first:'yes',plan:v.plan});assert.equal(n.records.common.unemployed.Working[skill],0);assert.equal(n.records.common.unemployed.Working[wrong],1);assert.equal(n.records.common.unemployed.Working.Gray,3);assert.equal(WCARecords.workingWorkerCount(n.records),count);
+ const wrongPlan=E.copy(v.plan);wrongPlan.reassignment.unemployed[skill]=1;wrongPlan.reassignment.unemployed.Gray=2;const before=E.copy(s);assert.throws(()=>E.reduce(s,{type:'action',first:'yes',plan:wrongPlan}),/対応する色の熟練労働者/);assert.deepEqual(s,before);
+});
+test('automa execution rejects a union below four employed workers even when the matching skilled worker is consumed',()=>{
+ const s=supportedUnionState('Food');s.records.companies.cc_vegetable_farm.status='unbuilt';s.records.companies.cc_vegetable_farm.operating='no';s.records.companies.cc_vegetable_farm.slots.forEach(x=>x.owner='empty');s.records.common.unemployed.Working.Green=1;
+ const unemployed={...s.records.common.unemployed.Working,Green:0},unions={...s.records.personal.Working.unions,Food:true};assert.throws(()=>WCARecords.applyAction(s.records,{action:'AW',reassignment:{companies:{},unemployed,unions}}),/4人/);
+});

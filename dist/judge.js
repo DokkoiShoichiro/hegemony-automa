@@ -244,7 +244,7 @@ function unlimitedWorkerAction(s,standard=false){
  function compare(a,b){let d=a.newUnions-b.newUnions;if(d)return d;for(let i=0;i<Math.max(a.ranked.length,b.ranked.length);i++){d=compareVector(a.ranked[i]?.key||[],b.ranked[i]?.key||[]);if(d)return d;}return a.unemployedAssigned-b.unemployedAssigned||a.moved-b.moved;}
  let best=null,candidateCount=0;considerLayout=layout=>{const candidate=makeCandidate(layout);if(!candidate)return;candidateCount++;if(!best||compare(candidate,best)>0)best=candidate;};walk(0,available,[]);
  if(!best)return actionResult('AW',false,'2人以上の失業労働者を企業へ配置することも、労働組合を設立することもできません。');
- const targets=[...(best.newUnions?[`労働組合${best.newUnions}個を設立`]:[]),...best.changes];
+ const targets=[...Object.entries(best.reassignment.unions).filter(([industry,active])=>active&&!r.personal.Working.unions[industry]).map(([industry])=>`${root.WCARecords.unionWorkerLabel(industry)}1人を${industry}産業の労働組合へ配置`),...best.changes];
  return actionResult('AW',true,`${standard?'通常AW':`カード#${s.card.number}`}：${best.unemployedAssigned}人の失業労働者を配置${best.newUnions?`し、労働組合を${best.newUnions}個設立`:''}します。`,targets,[`${standard?'最大3個を使う通常割り当て':`政策2${policy}：${policy==='C'?'誓約中でない在職者を含む':'失業者のみ'}`}の全合法案${candidateCount}件を比較`,`優先順：労働組合 → 最多の失業者を雇う企業 → 組合条件 → 賃金 → 国家 → 資本家 → 健康・教育 → 食料・メディア・ぜいたく品 → ランダム`],[],{action:'AW',reassignment:best.reassignment});
 }
 function workerAction(s){
