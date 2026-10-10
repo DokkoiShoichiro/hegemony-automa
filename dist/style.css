@@ -171,3 +171,7 @@ dialog#setupWelcome{width:min(94vw,900px)}
 .worker-token .compact-worker-icon svg{width:17px;height:17px}
 .worker-token.committed{transform:none;border-color:var(--skill-color)}
 .free-wage-workers{display:flex;flex-wrap:wrap;gap:4px}
+
+.summary-company-list>summary{font-size:.7rem;font-weight:500;color:#c1cfdf;margin:0 0 4px}
+@media(min-width:761px){.summary-company-list>summary{display:block;cursor:default;list-style:none}.summary-company-list>summary::-webkit-details-marker{display:none}}
+@media(max-width:760px){.summary-company-list>summary{margin:0}.summary-company-list[open]>summary{margin-bottom:4px}}
