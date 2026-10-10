@@ -79,3 +79,6 @@ dialog#setupWelcome{width:min(94vw,900px)}
 .setup-company-details h4{font-size:.9rem;line-height:1.5;margin:8px 0}.setup-company-details p{font-size:.75rem;line-height:1.5;margin:9px 0}.setup-company-details .company-topline{font-size:.7rem;gap:4px}.setup-company-production strong{color:#ffd18e}.setup-company-production small{display:block;font-size:.7rem}
 .setup-company-workers{display:flex;flex-wrap:wrap;gap:5px}.setup-worker{display:inline-block;padding:3px 5px;border:1px solid #52647e;border-radius:4px;background:#24344b;font-size:.7rem}.setup-company-note{border-top:1px solid #304057;padding-top:8px;color:#aebcd0}
 @media(max-width:640px){.setup-company-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.setup-company-card{padding:10px}dialog#setupWelcome{width:calc(100vw - 24px)}}
+
+/* Middle Class workers and dedicated slots use squares, including empty market slots. */
+.worker-token.middle,.worker-token.middle-slot{border-radius:4px}.worker-token.middle-slot.empty{border-color:#b18447}.worker-shape-legend{margin:0;font-size:.8rem}
