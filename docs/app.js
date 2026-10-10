@@ -76,7 +76,7 @@ function renderBoardSummary(){
  const value=(key,n,unit='')=>`<strong data-summary-value="${key}">${key==='vp'?S.icon('vp',number(n)):number(n)}${unit?`<small>${unit==='V'?VARDIS_ICON:unit}</small>`:''}</strong>`;
  const metric=(key,label,n,unit='')=>`<div><dt>${label}</dt><dd>${value(key,n,unit)}</dd></div>`;
  const stats=items=>`<dl class="summary-stats">${items.join('')}</dl>`;
- const chip=(key,label,n,color='')=>`<span class="summary-chip ${color}"><span>${S.names[key]?S.icon(key):key==='freeTradeFood'?S.icon('food'):key==='freeTradeLuxury'?S.icon('luxury'):label}</span>${value(key,n)}</span>`;
+ const chip=(key,label,n,color='')=>`<span class="summary-chip ${color} ${String(n??'').length>2?'wide-quantity':''}"><span>${S.names[key]?S.icon(key):key==='freeTradeFood'?S.icon('food'):key==='freeTradeLuxury'?S.icon('luxury'):label}</span>${value(key,n)}</span>`;
  const resources=(values,prefix='')=>`<div class="summary-resources" aria-label="${prefix}資源">${Object.entries({food:'食料',luxury:'贅沢品',health:'医療',education:'教育'}).map(([key,label])=>chip(key,label,values[key],key)).join('')}</div>`;
  const role=id=>({human:'プレイヤー',automa:'オートマ',absent:id==='State'?'公共部門':'不参加'})[r.participants[id]]||'未確認';
  const heading=(id,label)=>`<header><h2>${label}</h2><span>${role(id)}</span></header>`;
