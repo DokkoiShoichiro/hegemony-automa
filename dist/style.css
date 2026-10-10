@@ -83,5 +83,5 @@ dialog#setupWelcome{width:min(94vw,900px)}
 /* Middle Class workers and dedicated slots use squares, including empty market slots. */
 .worker-token.middle,.worker-token.middle-slot{border-radius:4px}.worker-token.middle-slot.empty{border-color:#b18447}.worker-shape-legend{margin:0;font-size:.8rem}
 
-/* Compact hand picker with the selected effect above the cards. */
+/* Compact hand picker with the selected effect below the cards. */
 .hand-grid{gap:6px;margin:8px 0}.hand-choice{margin:0;padding:8px;gap:6px;align-items:center;min-height:54px;font-size:.78rem;line-height:1.35}.hand-choice>span{min-width:0}.hand-choice input{width:16px;height:16px;margin:0;padding:0}.hand-choice small{margin-top:3px;font-size:.62rem}.hand-instruction{margin:6px 0;font-size:.78rem;line-height:1.5}.player-card-summary{padding:9px 10px;margin:8px 0;border-left:3px solid #ffb454;background:#0d192a;border-radius:4px}.player-card-summary h3{margin:0 0 5px;font-size:.9rem}.player-card-summary p{margin:5px 0;font-size:.82rem;line-height:1.5}.player-card-summary h3 .card-copy-label{display:inline;font-weight:400}.player-card-summary .notice{padding:7px;font-size:.72rem}.hand-help,.discard-cards{font-size:.75rem}.hand-help{margin-top:8px}
