@@ -47,6 +47,7 @@ function render(s,flow,commit){
   if(!active||used&&!pending||!a.ready)return;
   const form=details.querySelector('form'),fields=form.querySelector('#cardEffectFields'),w=s.records.personal[owner].values,cap=s.records.personal.Capitalist.values;
   const qtyField=(title,max)=>`<label>${title}<input id="effectQty" type="number" min="0" max="${max}" value="${Math.min(1,max)}"></label>`;
+  if(a.effect==='middleCard'){root.MiddleCardsUi.render(s,c,selected,form,commit,pending);return;}
   if(a.effect.startsWith('politics')){politicalForm(s,owner,c,a.effect,pending,selected,form,commit);return;}
   if(['branding','foodCrisis','foreignPartner','exportInsight'].includes(a.effect)){
    if(a.effect==='exportInsight'&&!pending){fields.innerHTML='<p>次の輸出カード2枚を公開します。公開後に交換先と取引を選びます。公開内容は保存され、再読み込み後も続けられます。</p>';form.querySelector('#cardEffectPreview').textContent='このカードを使用して2枚を公開し、効果の選択へ進みます。';form.querySelector('#playCardEffect').textContent='輸出カード2枚を公開して続ける';form.onsubmit=e=>{e.preventDefault();commit({type:'playerCardReveal',cardUid:selected});};return;}

@@ -45,8 +45,8 @@ function boardInstructions(before,after,event){if(!instructionEvents.has(event.t
  }
  if(event.type==='playerCardEffect'&&after.lastPlayerCard?.companySearch?.shuffleRequired)items.push('検索して設立した企業を除き、残りの企業山札をシャッフルする');
  if(event.type==='playerCardEffect'&&after.lastPlayerCard?.machinery?.lost)items.push(`配置先のない機械化トークン${after.lastPlayerCard.machinery.lost}枚は失われます`);
- if(event.type==='playerCardReveal')items.push('輸出カードの山札から次の2枚を公開する（画面の公開内容を使用）');
- if(event.type==='playerCardContinue'&&after.lastPlayerCard?.tradeEffect?.type==='exportInsight'){const effect=after.lastPlayerCard.tradeEffect;items.push(effect.choice===-1?'現在の輸出カードを維持し、公開した2枚を捨てる':`現在の輸出カードを公開した${effect.revealed[effect.choice].id}に交換し、元のカードと使わなかった公開カードを捨てる`);}
+ if(event.type==='playerCardReveal')items.push(`輸出カードの山札から次の${after.pendingPlayerCard?.revealed.length||2}枚を公開する（画面の公開内容を使用）`);
+ if(event.type==='playerCardContinue'&&after.lastPlayerCard?.tradeEffect?.type==='exportInsight'){const effect=after.lastPlayerCard.tradeEffect;items.push(effect.choice===-1?`現在の輸出カードを維持し、公開した${effect.revealed.length}枚を捨てる`:`現在の輸出カードを公開した${effect.revealed[effect.choice].id}に交換し、元のカードと使わなかった公開カードを捨てる`);}
  if(event.type==='playerCardEffect'&&after.lastPlayerCard?.tradeEffect?.type==='foreignPartner'){items.push('使用した商取引カードを捨てる');for(const [key,lost] of Object.entries(after.lastPlayerCard.tradeEffect.losses))if(lost>0)items.push(`容量超過の${key==='food'?'食料':'ぜいたく品'}${lost}個を廃棄する`);}
  if(Number(after.round)!==Number(before.round))items.push(`ラウンドマーカーを${before.round}から${after.round}へ進める`);
  if(event.type==='preparationApply'&&globalThis.MiddleClass?.isThree(after.records))for(const [i,card] of (after.lastPreparation?.middleImmigrationCards||[]).entries())items.push(`中産階級専用の移民カード${i+1}：${immigrationSkillLabels[card.Middle]}（労働者階級の面は使わず、山札の底へ戻す）`);

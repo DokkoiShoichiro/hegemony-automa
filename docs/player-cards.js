@@ -8,6 +8,7 @@ const skills=['Gray','Green','Blue','White','Orange','Purple'];
 const copy=x=>JSON.parse(JSON.stringify(x));
 const check=(ok,message)=>{if(!ok)throw Error(message);};
 const effects={
+ mc_foreign_market_insight:'middleCard',mc_personal_consumption:'middleCard',mc_small_business_grant:'middleCard',mc_labor_market_deregulation:'middleCard',mc_immigration:'middleCard',mc_growing_business:'middleCard',mc_land_of_opportunity:'middleCard',mc_voice_of_middle_class_workers:'middleCard',mc_new_theme_park:'middleCard',mc_unemployment_initiative_program:'middleCard',mc_supplemental_income_program:'middleCard',mc_specialization:'middleCard',mc_export_subsidy:'middleCard',mc_import_subsidy:'middleCard',mc_employment_subsidy:'middleCard',
  // First Middle stage: shared card families, with the Middle amounts/storage rules below.
  mc_healthcare_benefits:'discountHealth',mc_state_scholarship:'discountEducation',mc_highlight_social_issues:'influence',
  mc_fake_news:'politicsFake',mc_interest_groups:'politicsInterest',mc_public_opinion_polling:'politicsPolling',mc_immigration_reform:'politicsMovement',
@@ -51,7 +52,7 @@ function create(records,orders={}){
 function validate(s){
  const p=s.playerCards;check(!s.pendingPlayerCard||p,'継続中のカードには手札管理が必要です');if(p===undefined)return;
  check(p?.version===1&&p.classes&&typeof p.used==='boolean','プレイヤーカードの保存形式が不正です');
- if(s.pendingPlayerCard?.kind==='politics'){root.WCA.validatePlayerPolitics(s);}else if(s.pendingPlayerCard){const p=s.pendingPlayerCard;check(s.phase==='player'&&s.playerCards.used&&p.owner==='Capitalist'&&p.cardId==='cc_foreign_market_insight'&&cardId(p.uid)===p.cardId&&s.playerCards.classes.Capitalist?.discard.includes(p.uid)&&Array.isArray(p.revealed)&&p.revealed.length===2&&new Set(p.revealed.map(c=>c.id)).size===2&&p.revealed.every(c=>root.WCA?.EXPORT_CARD_DATA[c.id]&&JSON.stringify(c)===JSON.stringify(root.WCA.EXPORT_CARD_DATA[c.id])),'継続中の輸出カード公開が不正です');}
+ if(s.pendingPlayerCard?.kind==='politics'){root.WCA.validatePlayerPolitics(s);}else if(s.pendingPlayerCard){const p=s.pendingPlayerCard;check(s.phase==='player'&&s.playerCards.used&&['Capitalist','Middle'].includes(p.owner)&&p.cardId===(p.owner==='Middle'?'mc_foreign_market_insight':'cc_foreign_market_insight')&&cardId(p.uid)===p.cardId&&s.playerCards.classes[p.owner]?.discard.includes(p.uid)&&Array.isArray(p.revealed)&&p.revealed.length===(p.owner==='Middle'?1:2)&&new Set(p.revealed.map(c=>c.id)).size===p.revealed.length&&p.revealed.every(c=>root.WCA?.EXPORT_CARD_DATA[c.id]&&JSON.stringify(c)===JSON.stringify(root.WCA.EXPORT_CARD_DATA[c.id])),'継続中の輸出カード公開が不正です');}
  const humans=Object.keys(classKeys).filter(owner=>s.records?.participants[owner]==='human');
  check(Object.keys(p.classes).length===humans.length&&humans.every(owner=>p.classes[owner]),'手札を管理する階級が不正です');
  for(const owner of humans){const c=p.classes[owner];check(c&&['deck','hand','discard'].every(k=>Array.isArray(c[k])),'山札・手札・捨て札が不正です');check(validOrder(owner,[...c.deck,...c.hand,...c.discard]),'アクションカードに重複・欠落があります');check(c.hand.length<=7,'手札は7枚までです');}
@@ -63,7 +64,7 @@ function consume(s,e){
  check(!s.playerCards.used,'この手番のメインアクションは実行済みです');
  const owner=activeOwner(s),c=s.playerCards.classes[owner],index=c.hand.indexOf(e.cardUid);
  check(index>=0,'使用する手札のカードを選んでください');
- if(owner==='Middle')check(['middleBasic','middlePolicy','playerCardEffect'].includes(e.type),'中産階級のアクションではありません');else if(owner==='Working')check(['workingBasic','workingPolicy','playerCardEffect'].includes(e.type),'労働者のアクションではありません');
+ if(owner==='Middle')check(['middleBasic','middlePolicy','playerCardEffect','playerCardReveal'].includes(e.type),'中産階級のアクションではありません');else if(owner==='Working')check(['workingBasic','workingPolicy','playerCardEffect'].includes(e.type),'労働者のアクションではありません');
  else check(!['workingBasic','workingPolicy'].includes(e.type),'資本家のアクションではありません');
  c.hand.splice(index,1);c.discard.push(e.cardUid);s.playerCards.used=true;
  // workingBasic/workingPolicy perform their own legacy one-action check.
@@ -219,11 +220,12 @@ function exportTransactions(records,indices,allowed=['food','luxury','health','e
  for(const index of indices){const offer=r.trade.exportCard.offers[index];check(Number.isSafeInteger(index)&&offer&&allowed.includes(offer.resource),'輸出カードの取引が不正です');r=root.WCARecords.applyCapitalistExport(r,offer.resource,offer.quantity,offer.revenue);}return r;
 }
 function revealExport(s,played){
- check(played?.owner==='Capitalist'&&played.definition.id==='cc_foreign_market_insight'&&!s.pendingPlayerCard,'このカードでは輸出カードを公開できません');
- const revealed=[root.WCA.drawTradeCards(s,0).exportCard,root.WCA.drawTradeCards(s,0).exportCard];
- s.pendingPlayerCard={owner:'Capitalist',uid:played.uid,cardId:played.definition.id,revealed};
+ check(['Capitalist','Middle'].includes(played?.owner)&&played.definition.id===(played.owner==='Middle'?'mc_foreign_market_insight':'cc_foreign_market_insight')&&!s.pendingPlayerCard,'このカードでは輸出カードを公開できません');
+ const revealed=Array.from({length:played.owner==='Middle'?1:2},()=>root.WCA.drawTradeCards(s,0).exportCard);
+ s.pendingPlayerCard={owner:played.owner,uid:played.uid,cardId:played.definition.id,revealed};
 }
 function applyEffect(s,owner,c,plan={}){
+ if(owner==='Middle'&&effects[c.id]==='middleCard')return root.MiddleCards.apply(s,c,plan);
  const a=availability(s,owner,c.id);check(a.ready,a.reason);
  check(owner==='Middle'?root.MiddleClass?.isThree(s.records):s.records.participants.Middle==='absent'&&s.records.participants.State==='absent','この階級のカード効果は現在の人数設定に対応していません');
  let production=null,machinery=null,companySearch=null,tradeEffect=null,r=copy(s.records);const w=r.personal.Working.values,cap=r.personal.Capitalist.values,state=r.personal.State.values;

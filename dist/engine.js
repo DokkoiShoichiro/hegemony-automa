@@ -279,7 +279,7 @@ function reduce(state,e){if(state.pendingPlayerCard?.kind==='politics')root.Play
   if(e.immediate){requireThat(w.influence>0,'即時投票に必要な影響力がありません');w.influence--;beginElection(s,[{id,proposer:'Working',from,target,immediate:true}],'immediate','player');}
   else {requireThat(w.billMarkers>0,'法案マーカーがありません');w.billMarkers--;s.proposals[id]={proposer:'Working',from,target,round:s.round,turn:s.turn};aside(s,'policies',id,'bill:Working');}
   s.workingBasicUsed=true;note=`労働者が政策${id}を${target}へ提議`;break;}
- case 'playerCardReveal':{requireThat(played,'アプリ内の手札管理が必要です');root.PlayerCards.revealExport(s,played);note='輸出カード2枚を公開（交換・売却を選んで継続）';break;}
+ case 'playerCardReveal':{requireThat(played,'アプリ内の手札管理が必要です');root.PlayerCards.revealExport(s,played);note=`輸出カード${s.pendingPlayerCard.revealed.length}枚を公開（交換・売却を選んで継続）`;break;}
  case 'playerCardContinue':{const pending=s.pendingPlayerCard;requireThat(pending&&s.phase==='player','継続中のカード効果がありません');if(pending.kind==='politics')applyPlayerPolitics(s,{owner:pending.owner,uid:pending.uid,definition:root.PlayerCards.definition(pending.owner,pending.cardId)},e.plan,true);else root.PlayerCards.applyEffect(s,pending.owner,root.PlayerCards.definition(pending.owner,pending.cardId),e.plan);note='カード効果を継続';break;}
  case 'playerCardEffect':{requireThat(played,'アプリ内の手札管理が必要です');const hadDemo=!!s.records.common.tokens.demonstration;if(politicalEffect(played.definition.id))applyPlayerPolitics(s,played,e.plan);else root.PlayerCards.applyEffect(s,played.owner,played.definition,e.plan);if(hadDemo&&!s.records.common.tokens.demonstration&&s.aside.actions.DEM==='demonstration')place(s,'actions','DEM',0);note=`${played.definition.name}の効果を実行`;break;}
  case 'playerPolicy':{
