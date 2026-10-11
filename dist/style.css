@@ -201,3 +201,5 @@ dialog#setupWelcome{width:min(94vw,900px)}
 .summary-resources[aria-label="公共資源"]{grid-template-columns:repeat(3,minmax(0,1fr))}.summary-resources[aria-label="公共資源"] .summary-chip{padding:3px 1px;gap:1px}.summary-resources[aria-label="公共資源"] .game-symbol{width:14px;height:14px}
 .summary-resources:has(.wide-quantity){grid-template-columns:repeat(2,minmax(0,1fr))}
 @container summary-card (min-width:200px){.summary-resources:has(.wide-quantity){grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+.summary-working .summary-stats{grid-template-columns:repeat(6,minmax(0,1fr));column-gap:4px}.summary-working .summary-stats>div{grid-column:span 3}.summary-working .summary-stats>div:nth-child(n+3){grid-column:span 2}.summary-working .summary-stats>div:nth-child(n+3) dt{font-size:clamp(.6rem,7cqi,.7rem)}.summary-working .summary-stats strong{overflow-wrap:anywhere}
