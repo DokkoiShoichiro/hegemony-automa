@@ -17,7 +17,7 @@ const {chromium}=require(process.argv[2]||'playwright'),assert=require('node:ass
  assert.equal(await page.locator('#playerEnd').isEnabled(),true);assert.equal(await page.locator('#playCardEffect').count(),0);
  assert.equal(await page.locator('#boardInstructionDialog').isVisible(),true);assert.match(await page.locator('#boardInstructionDialog').textContent(),/健康|医療/);
  await page.evaluate(()=>document.getElementById('boardInstructionDialog').close());
- await page.locator('#workingUseHealth').click();assert.equal(await page.evaluate(()=>state.playerCards.classes.Working.discard.length),1);
+ await page.locator('#workingUseHealth').evaluate(el=>{for(let p=el.parentElement;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;});await page.locator('#workingUseHealth').click();assert.equal(await page.evaluate(()=>state.playerCards.classes.Working.discard.length),1);
  await page.evaluate(()=>document.getElementById('boardInstructionDialog').close());await page.locator('#undo').click();await page.locator('#undo').click();
  assert.equal(await page.evaluate(()=>state.playerCards.classes.Working.hand.length),7);assert.equal(await page.evaluate(()=>state.records.personal.Working.values.cash),30);
  await page.reload();assert.equal(await page.evaluate(()=>state.playerCards.classes.Working.hand.length),7);
@@ -27,7 +27,7 @@ const {chromium}=require(process.argv[2]||'playwright'),assert=require('node:ass
  await page.evaluate(()=>document.getElementById('boardInstructionDialog').close());
  await page.locator('#playerEnd').click();assert.equal(await page.evaluate(()=>state.phase),'start');
  await setup('Capitalist','cc_offshore_companies');await page.locator('#playCardEffect').click();
- assert.equal(await page.evaluate(()=>state.records.personal.Capitalist.values.capital),60);assert.equal(await page.locator('#capPressure').isDisabled(),true);assert.equal(await page.locator('#capRaiseWage').isEnabled(),true);
+ assert.equal(await page.evaluate(()=>state.records.personal.Capitalist.values.capital),60);assert.equal(await page.locator('#capPressure').isDisabled(),true);assert.equal(await page.locator('[data-free-wage]').first().isEnabled(),true);
  await page.evaluate(()=>document.getElementById('boardInstructionDialog').close());
  assert.equal(await page.locator('#capPurchaseSource option[value="Foreign"]').count(),0);
  // Multiple printed export transactions consume one card, not one per sale.

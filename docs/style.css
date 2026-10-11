@@ -241,3 +241,6 @@ dialog#setupWelcome{width:min(94vw,900px)}
 
 @media(max-width:760px){.panel .free-price-card label,.panel .free-price-card p{margin:0}.panel .free-price-card p{line-height:1.4}.panel .purchase-source-card label{margin:4px 0}.panel .hand-instruction{margin:5px 0}}
 @media(max-width:760px){.state-products{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.state-products article{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:3px;padding:6px 5px;min-height:44px}.state-products article>strong{font-size:.85rem}.state-products article>span{display:inline-flex;align-items:center}.state-products small{font-size:.65rem;white-space:nowrap;margin-left:auto}.state-products .game-symbol{width:14px;height:14px;margin:0 1px}}
+
+#flow .basic-actions{min-width:0;margin:10px 2px;padding:8px 12px;border:1px solid #aebcd0}#flow .basic-actions>details{margin:0;padding:0}#flow .basic-actions>details>summary{margin:0;line-height:1.6;font-weight:400}#flow .basic-actions>details[open]>summary{margin-bottom:8px}
+@media(max-width:760px){#flow .basic-actions{padding:6px 9px}#flow .basic-actions>details>summary{font-size:.88rem}}
