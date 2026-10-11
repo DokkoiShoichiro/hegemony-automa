@@ -13,16 +13,18 @@ function politicalForm(s,owner,c,effect,pending,selected,form,commit){
  if(effect==='politicsFake'){
   if(!pending){fields.innerHTML='<p>保存された袋の構成から6個を抽選して公開します。その後、サプライへ戻す駒を最大4個選びます。</p><p class="muted">途中で袋が空になったら2回補充し、残りを引きます。公開済みの駒は補充に使いません。</p>';preview.textContent=`袋内 ${E.bagCount(s)}個`;button.textContent='6個を公開して続ける';form.onsubmit=e=>{e.preventDefault();send({});};return;}
   fields.innerHTML=`<p>公開した6個：${drawText}</p>${Object.entries(draws).map(([id,n])=>`<label>サプライへ戻す${classLabels[id]}（公開${n}個）<input data-politics-remove="${id}" type="number" min="0" max="${n}" value="0"></label>`).join('')}`;
+  root.GameSymbols.decorateEffectFields(fields);
   const plan=()=>({remove:Object.fromEntries([...form.querySelectorAll('[data-politics-remove]')].map(x=>[x.dataset.politicsRemove,Number(x.value)]))}),update=()=>{const p=plan(),total=Object.values(p.remove).reduce((a,b)=>a+b,0);button.disabled=total>4||Object.entries(p.remove).some(([id,n])=>!Number.isSafeInteger(n)||n<0||n>draws[id]);preview.textContent=`サプライへ${total}個、残り${6-total}個を袋へ戻します。`;};form.oninput=update;button.textContent='投票駒を戻して完了';form.onsubmit=e=>{e.preventDefault();send(plan());};update();return;
  }
  if(effect==='politicsInterest'){
   fields.innerHTML='<p>他階級の投票駒が3個出るまで、袋から順に抽選します。他階級の3個をサプライへ戻し、自分の駒を最大3個袋へ入れます。途中で出た自分の駒はすべて袋へ戻します。</p><p class="muted">途中で袋が空になったら2回補充し、他階級の駒が3個出るまで続けます。</p>';preview.textContent='抽選結果と交換数は確定後に保存します。';button.textContent='投票駒を公開して交換';form.onsubmit=e=>{e.preventDefault();send({});};return;
  }
  if(effect==='politicsPolling'&&pending){
-  fields.innerHTML=`<p>政策${pending.proposal.id}を${pending.proposal.target}へ提出済み。公開した5個：${drawText}</p><label>投票を行いますか<select id="effectPollingVote"><option value="false">投票せず、5個を袋へ戻す</option><option value="true">この5個で即時投票（開始時の影響力消費なし）</option></select></label><p>この選択を確定してから、他の参加者が賛否を示します。</p>`;preview.textContent='投票を行わない場合も、法案は通常の投票フェイズまで残ります。';button.textContent='選択を確定';form.onsubmit=e=>{e.preventDefault();send({immediate:form.querySelector('#effectPollingVote').value==='true'});};return;
+  fields.innerHTML=`<p>政策${pending.proposal.id}を${pending.proposal.target}へ提出済み。公開した5個：${drawText}</p><label>投票を行いますか<select id="effectPollingVote"><option value="false">投票せず、5個を袋へ戻す</option><option value="true">この5個で即時投票（開始時の影響力消費なし）</option></select></label><p>この選択を確定してから、他の参加者が賛否を示します。</p>`;root.GameSymbols.decorateEffectFields(fields);preview.textContent='投票を行わない場合も、法案は通常の投票フェイズまで残ります。';button.textContent='選択を確定';form.onsubmit=e=>{e.preventDefault();send({immediate:form.querySelector('#effectPollingVote').value==='true'});};return;
  }
  const ids=E.politicalOptions(s,owner,c.id,pending?.firstPolicy),radical=effect==='politicsRadical',polling=effect==='politicsPolling';
  fields.innerHTML=`${effect==='politicsDouble'?`<p>${pending?'最初の法案とは異なる政策を選んで、2つ目を提出します。':'2つの法案を1つずつ提出します。最初の即時投票後に2つ目を選べます。'+(owner==='Capitalist'?'最初に25Vを支払います。':'')}</p>`:''}${effect==='politicsMovement'?'<p>先に自分の投票駒を最大2個、サプライから袋へ入れます。</p>':''}<label>法案を提出する政策<select id="effectPoliticalPolicy">${ids.map(id=>`<option value="${id}">政策${id}（現在${s.positions[id]}）</option>`).join('')}</select></label><label>提議先<select id="effectPoliticalTarget"></select></label>${!radical&&!polling?'<label><input type="checkbox" id="effectPoliticalImmediate">影響力1を使って即時投票</label>':''}${radical?'<p>2区画先にも提議できます。即時投票は行いません。</p>':''}${polling?'<p>法案を提出して5個を公開後、影響力を使わず即時投票を開始するか選びます。</p><p class="muted">途中で袋が空になったら2回補充し、合計5個になるまで引きます。</p>':''}${ids.length?'':'<p class="notice">現在、提出できる政策がありません。</p>'}`;
+ root.GameSymbols.decorateEffectFields(fields);
  const policy=form.querySelector('#effectPoliticalPolicy'),target=form.querySelector('#effectPoliticalTarget'),immediate=form.querySelector('#effectPoliticalImmediate');
  const update=()=>{const vote=!!immediate?.checked;button.disabled=!policy.value||!target.value||(vote?values.influence<1:values.billMarkers<1)||effect==='politicsDouble'&&!pending&&(ids.length<2||values.billMarkers+values.influence<2);preview.textContent=policy.value?`政策${policy.value}を${s.positions[policy.value]} → ${target.value}に提議。${vote?'影響力1を消費して投票へ進みます。':'法案マーカー1個を使用します。'}${polling?'5個の公開後に投票するか選べます。':''}`:'提出できる政策がありません。';};
  const targets=()=>{target.innerHTML=['A','B','C'].filter(x=>x!==s.positions[policy.value]&&(radical||Math.abs(x.charCodeAt(0)-s.positions[policy.value]?.charCodeAt(0))===1)).map(x=>`<option value="${x}">${x}</option>`).join('');update();};policy.onchange=targets;form.oninput=update;form.onchange=update;targets();
@@ -42,7 +44,7 @@ function render(s,flow,commit){
   panel.querySelectorAll('.hand-choice').forEach(el=>el.classList.toggle('selected',el.querySelector('input').value===selected));
   const c=P.card(owner,pending?.uid||selected);if(!c){summary.innerHTML='';details.innerHTML='';return;}
   const a=P.availability(s,owner,pending?.uid||selected);
-  summary.innerHTML=`<h3>${esc(c.name)} <small class="card-copy-label">${esc(copyLabel(owner,pending?.uid||selected))}</small></h3><p>${esc(c.effect)}</p>${c.requirement?`<p class="muted">使用条件：${esc(c.requirement)}</p>`:''}${c.bonus?`<p class="muted">正当性：${esc(c.bonus.detail||'+'+c.bonus.amount)}。国家プレイヤー不参加のため適用しません。</p>`:''}${!a.ready?`<p class="notice">${esc(a.reason)}</p>`:''}`;
+  summary.innerHTML=`<h3>${esc(c.name)} <small class="card-copy-label">${esc(copyLabel(owner,pending?.uid||selected))}</small></h3><p aria-label="${esc(c.effect)}">${root.GameSymbols.text(c.effect)}</p>${c.requirement?`<p class="muted">使用条件：${esc(c.requirement)}</p>`:''}${c.bonus?`<p class="muted">正当性：${esc(c.bonus.detail||'+'+c.bonus.amount)}。国家プレイヤー不参加のため適用しません。</p>`:''}${!a.ready?`<p class="notice">${esc(a.reason)}</p>`:''}`;
   details.innerHTML=`${active&&(!used||pending)&&a.ready?'<form id="playerCardEffectForm"><div id="cardEffectFields"></div><p id="cardEffectPreview" class="setup-summary" aria-live="polite"></p><button id="playCardEffect" type="submit">このカードの効果を使う</button></form>':''}`;
   if(!active||used&&!pending||!a.ready)return;
   const form=details.querySelector('form'),fields=form.querySelector('#cardEffectFields'),w=s.records.personal[owner].values,cap=s.records.personal.Capitalist.values;
@@ -152,7 +154,7 @@ function render(s,flow,commit){
    if(form.querySelector('#effectPurchase')?.checked)result.purchase={resource:form.querySelector('#effectPurchaseResource').value,purchases:[...form.querySelectorAll('[data-effect-source]')].map(x=>({source:x.dataset.effectSource,qty:Number(x.value)})).filter(x=>x.qty!==0)};
    return result;
   };
-  const preview=()=>{const box=form.querySelector('#cardEffectPreview'),button=form.querySelector('#playCardEffect');try{
+  const preview=()=>{root.GameSymbols.decorateEffectFields(fields);const box=form.querySelector('#cardEffectPreview'),button=form.querySelector('#playCardEffect');try{
    const after=P.applyEffect(JSON.parse(JSON.stringify(s)),owner,c,plan()),changes=[];
    for(const id of ['Working','Middle','Capitalist','State'].filter(id=>s.records.personal[id]&&after.records.personal[id]))for(const [key,label] of Object.entries({cash:'資金',revenue:'収入',capital:'資本',vp:'VP',influence:'影響力',loans:'貸付金',food:'食料',health:'医療',education:'教育',luxury:'贅沢品',consumedFood:'購入済み食料',consumedHealth:'購入済み医療',consumedEducation:'購入済み教育',consumedLuxury:'購入済み贅沢品',freeTradeFood:'自由貿易区の食料',freeTradeLuxury:'自由貿易区の贅沢品'})){const b=s.records.personal[id].values[key],n=after.records.personal[id].values[key];if(b!==n&&Number.isSafeInteger(b)&&Number.isSafeInteger(n))changes.push(`${labels[id]||'国家'}の${label} ${b} → ${n}`);}
    for(const key of ['health','education','influence']){const b=s.records.common.values[key],n=after.records.common.values[key];if(b!==n)changes.push(`国家の${resources[key]||'影響力'}在庫 ${b} → ${n}`);}
@@ -167,7 +169,7 @@ function render(s,flow,commit){
    if(after.lastPlayerCard.tradeEffect?.type==='exportInsight')changes.push(after.lastPlayerCard.tradeEffect.choice===-1?'現在の輸出カードを維持・公開2枚を捨てる':'輸出カードを交換・元のカードと不使用カードを捨てる');
    if(after.lastPlayerCard.tradeEffect?.type==='foreignPartner'){changes.push('使用した商取引カードを捨てる');for(const [key,lost] of Object.entries(after.lastPlayerCard.tradeEffect.losses))if(lost>0)changes.push(`容量超過で${resources[key]}${lost}個廃棄`);}
    const beforePopulation=s.records.personal.Working.values.population,afterPopulation=after.records.personal.Working.values.population;if(beforePopulation!==afterPopulation)changes.push(`労働者の人口 ${beforePopulation} → ${afterPopulation}`);
-   box.textContent=changes.join(' ／ ')||'選択した効果を盤面へ反映します。';button.disabled=false;
+   box.innerHTML=root.GameSymbols.effectChanges(changes,'選択した効果を盤面へ反映します。');button.disabled=false;
   }catch(error){box.textContent=error.message;button.disabled=true;}};
   form.addEventListener('input',preview);form.addEventListener('change',preview);
   form.onsubmit=e=>{e.preventDefault();commit({type:pending?'playerCardContinue':'playerCardEffect',cardUid:pending?.uid||selected,plan:plan(),source:'ユーザー提供 hegemony_action_cards_full_v6_bonus_fixed.json'});};preview();
