@@ -1,44 +1,7 @@
-const {chromium}=require(process.argv[2]);
-const {pathToFileURL}=require('url');
-const path=require('path');
-const assert=require('node:assert/strict');
-
-(async()=>{
- const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
- try{
-  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];
-  page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(pathToFileURL(path.resolve(__dirname,'../dist/index.html')).href);
-  await page.locator('#setupWelcomeForm button[type=submit]').click();
-  await page.evaluate(()=>{state.phase='player';state.records.companies.cc_supermarket_pool.status='market';state.records.companies.cc_shopping_mall_pool.status='market';state.records.common.unemployed.Working.Green=1;state.records.common.unemployed.Working.Gray=2;render();});
-  await page.locator('#capBuild').evaluate(el=>el.closest('details').open=true);await page.locator('#capBuild').click();
-  await page.locator('#establishPick').selectOption('cc_shopping_mall_pool');
-  assert.match(await page.locator('#establishDetails').innerText(),/空きスロット 2/);
-  assert.match(await page.locator('#establishDetails').innerText(),/機械化トークン：生産 \+2 贅沢品/);
-  await page.locator('#establishPick').selectOption('cc_supermarket_pool');
-  assert.match(await page.locator('#establishDetails').innerText(),/空きスロット 3/);
-  assert.match(await page.locator('#establishDetails').innerText(),/機械化トークンによる生産増加なし/);
-  assert.equal(await page.locator('[data-establish-committed]').count(),0);
-  assert.equal(await page.locator('#establishStaffAll').count(),1);
-  await page.locator('#establishStaffAll').selectOption('yes');
-  await page.locator('#establishForm button[type=submit]').click();
-  const result=await page.evaluate(()=>({slots:state.records.companies.cc_supermarket_pool.slots,green:state.records.common.unemployed.Working.Green,gray:state.records.common.unemployed.Working.Gray,dialog:!!document.querySelector('#establishDialog')}));
-  assert.equal(result.slots.every(x=>x.owner==='Working'&&x.committed),true);
-  assert.deepEqual({green:result.green,gray:result.gray,dialog:result.dialog},{green:0,gray:0,dialog:false});
-  await page.locator('#boardInstructionDone').click();
-  await page.evaluate(()=>{state.records.companies.cc_electronics_auto.status='market';render();});
-  await page.locator('#capBuild').evaluate(el=>el.closest('details').open=true);await page.locator('#capBuild').click();
-  await page.locator('#establishPick').selectOption('cc_electronics_auto');
-  assert.equal(await page.locator('#establishStaffAll').count(),0);
-  assert.equal(await page.locator('[data-establish-worker]').count(),0);
-  assert.match(await page.locator('#establishDetails').innerText(),/自動化企業（労働者スロットなし）/);
-  assert.match(await page.locator('#establishDetails').innerText(),/機械化トークンによる生産増加なし/);
-  await page.locator('#establishForm button[type=submit]').click();
-  const automated=await page.evaluate(()=>state.records.companies.cc_electronics_auto);
-  assert.equal(automated.operating,'yes');
-  assert.deepEqual(automated.slots,[]);
-  assert.deepEqual(errors,[]);
-  console.log('PASS capitalist build: slot and machinery info, all slots only, automated company');
- }finally{await browser.close();}
-})().catch(error=>{console.error(error);process.exitCode=1;});
-
+const {chromium}=require(process.argv[2]||'playwright'),assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});try{
+ const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(process.env.APP_URL||'http://127.0.0.1:4173');
+ await page.evaluate(()=>{document.getElementById('setupWelcome')?.remove();history=[];state=E.reduce(E.initial(),{type:'setup',players:2,automaClass:'Working',market:['cc_supermarket_pool','cc_shopping_mall_pool','cc_electronics_auto','cc_clinic_pool'],managePlayerCards:false,confirmed:true});state.phase='player';state.records.common.unemployed.Working.Green=1;state.records.common.unemployed.Working.Gray=2;render();persist();});
+ await page.locator('#capBuild').evaluate(el=>el.closest('details').open=true);await page.locator('[data-build-choice=cc_shopping_mall_pool]').check();assert.match(await page.locator('.build-choice.selected').textContent(),/機械化時：＋2/);await page.locator('[data-build-choice=cc_supermarket_pool]').check();assert.equal(await page.locator('.build-choice.selected [data-build-slot]').count(),3);await page.locator('#capBuildStaffAll').selectOption('yes');await page.locator('#capBuild').click();await page.locator('#boardInstructionDone').click();assert.equal(await page.evaluate(()=>state.records.companies.cc_supermarket_pool.slots.every(x=>x.owner==='Working'&&x.committed)),true);assert.equal(await page.evaluate(()=>state.records.common.unemployed.Working.Gray),0);assert.equal(await page.evaluate(()=>state.records.common.unemployed.Working.Green),0);
+ await page.locator('#capBuild').evaluate(el=>el.closest('details').open=true);await page.locator('[data-build-choice=cc_electronics_auto]').check();assert.equal(await page.locator('#capBuildStaffAll').count(),0);assert.match(await page.locator('.build-fields').textContent(),/ワーカー不要/);await page.locator('#capBuild').click();assert.equal(await page.evaluate(()=>state.records.companies.cc_electronics_auto.operating),'yes');assert.deepEqual(await page.evaluate(()=>state.records.companies.cc_electronics_auto.slots),[]);assert.deepEqual(errors,[]);console.log('PASS capitalist shared inline build: company cards, complete staffing, committed workers and automation');
+ }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -185,9 +185,6 @@ function render(s,flow,commit){
   if(owner==='Middle'&&pending)flow.querySelectorAll(':scope > fieldset button, :scope > details button').forEach(button=>button.disabled=true);
   if(owner==='Capitalist'){
    const source=flow.querySelector('#capPurchaseSource');if(source){source.querySelector('[value="Foreign"]')?.remove();source.value='BusinessDeal';source.dispatchEvent(new Event('change'));}
-   const policy=flow.querySelector('#capPolicy'),target=flow.querySelector('#capPolicyTarget');
-   if(policy&&target){const trim=()=>{const from=s.positions[policy.value];[...target.options].filter(o=>Math.abs(o.value.charCodeAt(0)-from.charCodeAt(0))!==1).forEach(o=>o.remove());};policy.addEventListener('change',trim);trim();const note=target.closest('details').querySelector('.muted');if(note)note.textContent='基本アクションでは、現在位置に隣接する区画へ提議します。';}
-   const exportButton=flow.querySelector('#capExport');if(exportButton){const container=exportButton.closest('details'),offers=s.records.trade.exportCard.offers;container.innerHTML=`<summary>海外市場へ売却</summary><p>輸出カードの取引を任意の数選びます。各取引は1回までです。</p>${offers.map((o,i)=>`<label><input type="checkbox" data-player-export="${i}" ${used?'disabled':''}>${root.GameSymbols.icon(o.resource)}${o.quantity}個 → ${o.revenue}${root.GameSymbols.icon('vardis')}</label>`).join('')}<button id="capExport" ${used?'disabled':''}>選んだ取引を実行</button>`;container.querySelector('button').onclick=()=>commit({type:'playerExport',transactions:[...container.querySelectorAll('[data-player-export]:checked')].map(x=>Number(x.dataset.playerExport)),cardUid:selection(s)});}
   }
  }
 }

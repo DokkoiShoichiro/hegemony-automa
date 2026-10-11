@@ -23,7 +23,7 @@ const {chromium}=require(process.argv[2]||'playwright'),assert=require('node:ass
  await page.reload();assert.equal(await page.evaluate(()=>state.playerCards.classes.Working.hand.length),7);
  // Selecting an unsupported effect still allows a basic action; no bonus.
  await setup('Working','wc_fake_news');assert.equal(await page.locator('#playCardEffect').count(),1);assert.match(await page.locator('#playerCardDetails').textContent(),/6個を抽選して公開/);
- await page.locator('#workingPressure').click();assert.equal(await page.evaluate(()=>state.playerCards.classes.Working.discard[0]),'wc_fake_news#1');
+ await page.locator('#workingPressure').evaluate(el=>el.closest('details').open=true);await page.locator('#workingPressure').click();assert.equal(await page.evaluate(()=>state.playerCards.classes.Working.discard[0]),'wc_fake_news#1');
  await page.evaluate(()=>document.getElementById('boardInstructionDialog').close());
  await page.locator('#playerEnd').click();assert.equal(await page.evaluate(()=>state.phase),'start');
  await setup('Capitalist','cc_offshore_companies');await page.locator('#playCardEffect').click();
