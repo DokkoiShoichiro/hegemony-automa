@@ -73,8 +73,17 @@ function pool(r){return Object.fromEntries(SKILLS.map(k=>[k,Number(r.common?.une
 function fill(d,p){if(d.workers.some(x=>x.type==='MiddleClass'))return null;function walk(i,left){if(i===d.workers.length)return left;const slot=d.workers[i],choices=slot.type==='Skilled'?[slot.color]:SKILLS;for(const skill of choices)if(left[skill]>0){const done=walk(i+1,{...left,[skill]:left[skill]-1});if(done)return done;}return null;}return walk(0,{...p});}
 function fillOptions(d,p){if(d.workers.some(x=>x.type==='MiddleClass'))return [];const found=[];function walk(i,left){if(i===d.workers.length){found.push(left);return;}const slot=d.workers[i],choices=slot.type==='Skilled'?[slot.color]:SKILLS;for(const skill of choices)if(left[skill]>0)walk(i+1,{...left,[skill]:left[skill]-1});}walk(0,{...p});return [...new Map(found.map(x=>[JSON.stringify(x),x])).values()];}
 const UNION_SKILL={Food:'Green',Luxury:'Blue',Health:'White',Education:'Orange',Media:'Purple'};
-function unionRange(r,map,p,candidates){const counts=Object.fromEntries(Object.keys(UNION_SKILL).map(k=>[k,0]));for(const [id,c] of Object.entries(r.companies||{})){const d=map[id];if(c.status==='built'&&d)counts[d.industry]=(counts[d.industry]||0)+c.slots.filter(x=>x.owner==='Working').length;}let lower=0;function score(left,added,used){const eligible=Object.entries(UNION_SKILL).filter(([industry,skill])=>!r.personal?.Working?.unions?.[industry]&&(counts[industry]||0)+(added[industry]||0)>=4&&left[skill]>0).length;lower=Math.max(lower,Math.min(eligible,3-used));}function plans(start,left,used,added){score(left,added,used);for(let i=start;i<candidates.length;i++){const d=candidates[i],cost=d.workers.length;if(used+cost>2)continue;for(const next of fillOptions(d,left))plans(i+1,next,used+cost,{...added,[d.industry]:(added[d.industry]||0)+cost});}}plans(0,p,0,{});
- const available=Object.values(p).reduce((n,x)=>n+Number(x||0),0),costs=[];for(const [industry,skill] of Object.entries(UNION_SKILL)){if(r.personal?.Working?.unions?.[industry])continue;const empty=candidates.filter(d=>d.industry===industry).reduce((n,d)=>n+d.workers.length,0),need=Math.max(0,4-(counts[industry]||0));let skilled=p[skill]>0;if(!skilled&&p.Gray>0)skilled=Object.entries(r.companies||{}).some(([id,c])=>{const d=map[id];return c.status==='built'&&d&&c.slots.some((x,i)=>x.owner==='Working'&&x.skill===skill&&d.workers[i]?.type==='Unskilled');});if(need<=2&&empty>=need&&skilled&&need+1<=available)costs.push(need+1);}let upper=0;function choose(i,total,n){upper=Math.max(upper,n);for(let k=i;k<costs.length;k++)if(total+costs[k]<=3&&total+costs[k]<=available)choose(k+1,total+costs[k],n+1);}choose(0,0,0);return {lower,upper};}
+// Enumerate complete-company assignments and legal Swap Workers pools. A union
+// consumes its own matching skilled worker in addition to its four employees.
+function unionRange(r,map,p,candidates,limit=3){
+ const counts=Object.fromEntries(Object.keys(UNION_SKILL).map(k=>[k,0])),swappable=Object.fromEntries(SKILLS.map(k=>[k,0]));
+ for(const [id,c] of Object.entries(r.companies||{})){const d=map[id];if(c.status!=='built'||!d)continue;for(let i=0;i<c.slots.length;i++){const x=c.slots[i];if(x.owner!=='Working')continue;counts[d.industry]=(counts[d.industry]||0)+1;if(x.skill!=='Gray'&&d.workers[i]?.type==='Unskilled')swappable[x.skill]++;}}
+ let maximum=0;const visited=new Set();
+ function score(left,added,used){const eligible=Object.entries(UNION_SKILL).filter(([industry,skill])=>!r.personal?.Working?.unions?.[industry]&&(counts[industry]||0)+(added[industry]||0)>=4&&left[skill]>0).length;maximum=Math.max(maximum,Math.min(eligible,limit-used));}
+ function assign(start,left,used,added){const key=[start,used,...SKILLS.map(k=>left[k]),...Object.keys(UNION_SKILL).map(k=>added[k]||0)].join('|');if(visited.has(key))return;visited.add(key);score(left,added,used);for(let i=start;i<candidates.length;i++){const d=candidates[i],cost=d.workers.length;if(!cost||used+cost+1>limit)continue;for(const next of fillOptions(d,left))assign(i+1,next,used+cost,{...added,[d.industry]:(added[d.industry]||0)+cost});}}
+ function swaps(i,left,grayLeft){if(i===SKILLS.length){assign(0,left,0,{});return;}const skill=SKILLS[i],max=skill==='Gray'?0:Math.min(swappable[skill],grayLeft);for(let n=0;n<=max;n++)swaps(i+1,{...left,Gray:left.Gray-n,[skill]:left[skill]+n},grayLeft-n);}
+ swaps(0,{...p},p.Gray);return {lower:maximum,upper:maximum};
+}
 // Search Working employee slots without exposing Middle's mandatory workers.
 function workingView(records){const r=JSON.parse(JSON.stringify(records)),map=defs(),indices={};if(root.MiddleClass?.isThree(r))for(const [id,c] of Object.entries(r.companies)){const d=map[id];if(d?.class!=='Middle'||c.status!=='built'||c.operating!=='yes')continue;const ii=d.workers.flatMap((w,i)=>w.type!=='MiddleClass'?[i]:[]);indices[id]=ii;map[id]={...d,workers:ii.map(i=>d.workers[i])};c.slots=ii.map(i=>c.slots[i]);}return {records:r,map,indices};}
 function workersCheck(s,a){
@@ -87,11 +96,11 @@ function workersCheck(s,a){
   for(const left of options){const r=JSON.parse(JSON.stringify(base)),used=Object.fromEntries(SKILLS.map(skill=>[skill,start[skill]-left[skill]]));r.common.unemployed.Working={...left};const c=r.companies[farm.id];c.status='built';c.operating='yes';c.strike=false;const placed=[];for(const skill of SKILLS)for(let n=0;n<used[skill];n++)placed.push(skill);c.slots=placed.map(skill=>({owner:'Working',skill,committed:true}));addScenario(r,'共同農場を設立・配置');}
   if(!scenarios.length)addScenario(base,'共同農場を設立できない');
  }else addScenario(base);
- let maxHire=0,unionLower=0,unionUpper=0,unemployed=0,slots=0,swaps=0;
- for(const scenario of scenarios){const r=scenario.records,p=scenario.p,candidates=[];let scenarioSlots=0,scenarioSwaps=0;for(const [id,c] of Object.entries(r.companies||{})){if(c.status!=='built')continue;const d=map[id];if(!d)continue;for(let i=0;i<c.slots.length;i++)if(d.workers[i]?.type==='Unskilled'&&c.slots[i].owner==='Working'&&c.slots[i].skill!=='Gray')scenarioSwaps++;if(c.slots.every(x=>x.owner==='empty')&&d.workers.every(x=>x.type!=='MiddleClass')){scenarioSlots+=c.slots.length;if(c.slots.length<=3&&fill(d,p))candidates.push(d);}}
-  let scenarioHire=0;function choose(i,left,total){scenarioHire=Math.max(scenarioHire,total);for(let k=i;k<candidates.length;k++){const d=candidates[k];if(total+d.workers.length>limit)continue;const next=fill(d,left);if(next)choose(k+1,next,total+d.workers.length);}}choose(0,p,0);const unions=unionRange(r,map,p,candidates);maxHire=Math.max(maxHire,scenarioHire);unionLower=Math.max(unionLower,unions.lower);unionUpper=Math.max(unionUpper,unions.upper);unemployed=Math.max(unemployed,Object.values(p).reduce((x,y)=>x+y,0));slots=Math.max(slots,scenarioSlots);swaps=Math.max(swaps,scenarioSwaps);
+ let maxHire=0,unionUpper=0,unemployed=0,slots=0,swaps=0;
+ for(const scenario of scenarios){const r=scenario.records,p=scenario.p,candidates=[];let scenarioSlots=0,scenarioSwaps=0;for(const [id,c] of Object.entries(r.companies||{})){if(c.status!=='built')continue;const d=map[id];if(!d)continue;for(let i=0;i<c.slots.length;i++)if(d.workers[i]?.type==='Unskilled'&&c.slots[i].owner==='Working'&&c.slots[i].skill!=='Gray')scenarioSwaps++;if(c.slots.every(x=>x.owner==='empty')&&d.workers.every(x=>x.type!=='MiddleClass')){scenarioSlots+=c.slots.length;if(c.slots.length>0&&c.slots.length<=limit)candidates.push(d);}}
+  let scenarioHire=0;function choose(i,left,total){scenarioHire=Math.max(scenarioHire,total);for(let k=i;k<candidates.length;k++){const d=candidates[k];if(total+d.workers.length>limit)continue;const next=fill(d,left);if(next)choose(k+1,next,total+d.workers.length);}}choose(0,p,0);const unions=unlimited&&s.positions[2]==='C'?(()=>{const result=unlimitedWorkerAction(s,false,true);return {lower:result.maximumUnions,upper:result.maximumUnions};})():unionRange(r,map,p,candidates,limit);maxHire=Math.max(maxHire,scenarioHire);unionUpper=Math.max(unionUpper,unions.upper);unemployed=Math.max(unemployed,Object.values(p).reduce((x,y)=>x+y,0));slots=Math.max(slots,scenarioSlots);swaps=Math.max(swaps,scenarioSwaps);
  }
- const bonusApplied=['gainSkilled','coopFarm'].includes(card.bonusType);if(swaps&&scenarios.some(x=>x.p.Gray>0))warn(o,`Swap Workersの候補が${Math.min(swaps,Math.max(...scenarios.map(x=>x.p.Gray)))}人います。入れ替え後の盤面を記録してください。`);if(maxHire>=2)add(o,'actions','AW',maxHire,`失業者を最大${maxHire}人雇用できる${unlimited||paidFour||bonusApplied?`（カード#${s.card.number}のボーナス反映後）`:''}`);const unions={lower:unionLower,upper:unionUpper};if(unions.lower===unions.upper){if(unions.lower)add(o,'actions','AW',2*unions.lower,`1回の割り当てで設立できる組合${unions.lower}個`);else o.reasons.push('設立できる労働組合なし');}else if(a.simultaneousUnions===undefined)ask(o,'simultaneousUnions','再配置を含めて設立できる労働組合の最大数','number',{min:unions.lower,max:unions.upper});else{const n=Math.max(unions.lower,Math.min(unions.upper,Number(a.simultaneousUnions)));if(n)add(o,'actions','AW',2*n,`設立できる労働組合${n}個`);}const gap=Math.max(0,unemployed-slots);if(gap)add(o,'actions','DEM',gap,`失業者${unemployed}－空きスロット${slots}`);if(!o.questions.length&&!o.movements.some(x=>x.card==='AW')&&o.status==='ready')add(o,'actions','SA',1,'AW条件なし');o.reasons.push(`${bonusApplied?'ボーナス反映後：':''}失業者${unemployed}、空きスロット${slots}、最大雇用${maxHire}`);inspectCard(s,o);return o;
+ const bonusApplied=['gainSkilled','coopFarm'].includes(card.bonusType);if(swaps&&scenarios.some(x=>x.p.Gray>0))o.reasons.push(`未熟練者との入れ替え候補${Math.min(swaps,Math.max(...scenarios.map(x=>x.p.Gray)))}人を組合の設立可能数に反映`);if(maxHire>=2)add(o,'actions','AW',maxHire,`失業者を最大${maxHire}人雇用できる${unlimited||paidFour||bonusApplied?`（カード#${s.card.number}のボーナス反映後）`:''}`);if(unionUpper)add(o,'actions','AW',2*unionUpper,`再配置を含めて設立できる労働組合の最大数${unionUpper}個（対応色の熟練者を各1人配置）`);else o.reasons.push('設立できる労働組合なし');const gap=Math.max(0,unemployed-slots);if(gap)add(o,'actions','DEM',gap,`失業者${unemployed}－空きスロット${slots}`);if(!o.questions.length&&!o.movements.some(x=>x.card==='AW')&&o.status==='ready')add(o,'actions','SA',1,'AW条件なし');o.reasons.push(`${bonusApplied?'ボーナス反映後：':''}失業者${unemployed}、空きスロット${slots}、最大雇用${maxHire}`);inspectCard(s,o);return o;
 }
 
 const actionResult=(action,feasible,summary,targets=[],reasons=[],warnings=[],plan=null)=>({action,feasible,status:feasible===null?'needsReview':feasible?'ready':'infeasible',summary,targets,reasons,warnings,plan,source:'Word転記「アクションの詳細」'});
@@ -173,7 +182,7 @@ function strikeAction(s){
  return actionResult('STR',true,`${targets.join('、')}にストライキします。`,targets,[`ストライキ可能企業${c.list.length}社から優先基準で選択`,`全基準で同点の場合はアプリが保存中の手番情報から抽選`],[],{action:'STR',companyIds:c.list.slice(0,2).map(x=>x.id)});
 }
 function fillPlan(d,p){if(d.workers.some(x=>x.type==='MiddleClass'))return null;function walk(i,left,slots){if(i===d.workers.length)return {left,slots};const slot=d.workers[i],choices=slot.type==='Skilled'?[slot.color]:SKILLS;for(const skill of choices)if(left[skill]>0){const done=walk(i+1,{...left,[skill]:left[skill]-1},[...slots,{index:i,skill}]);if(done)return done;}return null;}return walk(0,{...p},[]);}
-function unlimitedWorkerAction(s,standard=false){
+function unlimitedWorkerAction(s,standard=false,analysis=false){
  const r=s.records,map=defs(),policy=standard?'B':s.positions[2];
  if(!standard&&!['B','C'].includes(policy))return null;
 
@@ -191,7 +200,7 @@ function unlimitedWorkerAction(s,standard=false){
   companies.push({id,c,d,fixed,indices,original});
  }
  const available=Object.fromEntries(SKILLS.map(skill=>[skill,tokens.filter(t=>t.skill===skill).length]));
- let considerLayout=()=>{};
+ let considerLayout=()=>{};const analysisSeen=new Set();
  function options(x,left){
   const result=[];if(!Object.keys(x.fixed).length)result.push(Array(x.c.slots.length).fill(null));
   function fillSlots(i,next,slots){
@@ -204,6 +213,7 @@ function unlimitedWorkerAction(s,standard=false){
   return [...new Map(result.map(v=>[JSON.stringify(v),v])).values()];
  }
  function walk(i,left,chosen){
+  if(analysis){const counts=Object.fromEntries(Object.keys(UNION_SKILL).map(k=>[k,0]));chosen.forEach((slots,n)=>counts[companies[n].d.industry]+=slots.filter(Boolean).length);const key=[i,...SKILLS.map(k=>left[k]),...Object.values(counts)].join('|');if(analysisSeen.has(key))return;analysisSeen.add(key);}
   if(i===companies.length){considerLayout({left:{...left},chosen});return;}
   const x=companies[i];for(const slots of options(x,left)){
    const next={...left};let ok=true;for(let k=0;k<slots.length;k++)if(slots[k]&&!x.fixed[k]&&--next[slots[k]]<0){ok=false;break;}
@@ -216,6 +226,7 @@ function unlimitedWorkerAction(s,standard=false){
  function companyPriority(item){const {x,unemployed}=item,industry=x.d.industry,service=['Health','Education'].includes(industry),key=industry.toLowerCase(),price=service?({A:0,B:5,C:10})[s.positions[industry==='Health'?4:5]]:0,notProduced=service&&Number(r.common.values?.[key]||0)===0,after=item.slots.filter(Boolean).length;return [unemployed,beforeIndustry[industry]<4&&beforeIndustry[industry]-x.c.slots.filter(v=>v.owner==='Working').length+after>=4?1:0,wageRank[wage(x.d,x.c,s)]||0,x.d.class==='State'?1:0,x.d.class==='Capitalist'?1:0,service?1:0,notProduced?1:0,price,industryRank[industry]||0,stableRandom(x.id)];}
  const compareVector=(a,b)=>{for(let i=0;i<Math.max(a.length,b.length);i++){const d=Number(a[i]||0)-Number(b[i]||0);if(d)return d;}return 0;};
  function makeCandidate(layout){
+  if(analysis){const counts=Object.fromEntries(Object.keys(UNION_SKILL).map(k=>[k,0]));layout.chosen.forEach((slots,n)=>counts[companies[n].d.industry]+=slots.filter(Boolean).length);return {newUnions:Object.entries(UNION_SKILL).filter(([industry,skill])=>!r.personal.Working.unions[industry]&&counts[industry]>=4&&layout.left[skill]>0).length};}
   const free=tokens.map(t=>({...t})),states={},targets=[],changes=[];let unemployedAssigned=0,moved=0;
   for(let n=0;n<companies.length;n++){
    const x=companies[n],skills=layout.chosen[n],slots=[];let companyUnemployed=0;
@@ -236,13 +247,14 @@ function unlimitedWorkerAction(s,standard=false){
   const unions={...r.personal.Working.unions},industryCounts=Object.fromEntries(Object.keys(UNION_SKILL).map(k=>[k,0]));for(let n=0;n<companies.length;n++)industryCounts[companies[n].d.industry]+=layout.chosen[n].filter(Boolean).length;
   const dissolved=[];for(const [industry,skill] of Object.entries(UNION_SKILL))if(unions[industry]&&industryCounts[industry]<4){unions[industry]=false;dissolved.push(skill);}
   let newUnions=0;for(const [industry,skill] of Object.entries(UNION_SKILL))if(!unions[industry]&&industryCounts[industry]>=4){const at=free.findIndex(t=>t.skill===skill);if(at>=0){free.splice(at,1);unions[industry]=true;newUnions++;moved++;}}
-  if(unemployedAssigned<2&&!newUnions||standard&&moved>3)return null;
+  if(!analysis&&unemployedAssigned<2&&!newUnions||standard&&moved>3)return null;
   const unemployed=Object.fromEntries(SKILLS.map(skill=>[skill,free.filter(t=>t.skill===skill).length+dissolved.filter(x=>x===skill).length]));
   const ranked=targets.map(item=>({name:item.x.d.name_jp,key:companyPriority(item)})).sort((a,b)=>compareVector(b.key,a.key));
   return {newUnions,unemployedAssigned,moved,ranked,changes,reassignment:{companies:states,unemployed,unions}};
  }
  function compare(a,b){let d=a.newUnions-b.newUnions;if(d)return d;for(let i=0;i<Math.max(a.ranked.length,b.ranked.length);i++){d=compareVector(a.ranked[i]?.key||[],b.ranked[i]?.key||[]);if(d)return d;}return a.unemployedAssigned-b.unemployedAssigned||a.moved-b.moved;}
- let best=null,candidateCount=0;considerLayout=layout=>{const candidate=makeCandidate(layout);if(!candidate)return;candidateCount++;if(!best||compare(candidate,best)>0)best=candidate;};walk(0,available,[]);
+ let best=null,candidateCount=0,maximumUnions=0;considerLayout=layout=>{const candidate=makeCandidate(layout);if(!candidate)return;maximumUnions=Math.max(maximumUnions,candidate.newUnions);candidateCount++;if(!best||(analysis?candidate.newUnions>best.newUnions:compare(candidate,best)>0))best=candidate;};walk(0,available,[]);
+ if(analysis)return {maximumUnions};
  if(!best)return actionResult('AW',false,'2人以上の失業労働者を企業へ配置することも、労働組合を設立することもできません。');
  const targets=[...Object.entries(best.reassignment.unions).filter(([industry,active])=>active&&!r.personal.Working.unions[industry]).map(([industry])=>`${root.WCARecords.unionWorkerLabel(industry)}1人を${industry}産業の労働組合へ配置`),...best.changes];
  return actionResult('AW',true,`${standard?'通常AW':`カード#${s.card.number}`}：${best.unemployedAssigned}人の失業労働者を配置${best.newUnions?`し、労働組合を${best.newUnions}個設立`:''}します。`,targets,[`${standard?'最大3個を使う通常割り当て':`政策2${policy}：${policy==='C'?'誓約中でない在職者を含む':'失業者のみ'}`}の全合法案${candidateCount}件を比較`,`優先順：労働組合 → 最多の失業者を雇う企業 → 組合条件 → 賃金 → 国家 → 資本家 → 健康・教育 → 食料・メディア・ぜいたく品 → ランダム`],[],{action:'AW',reassignment:best.reassignment});
