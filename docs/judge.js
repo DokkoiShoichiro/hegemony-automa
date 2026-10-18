@@ -71,7 +71,7 @@ function goodsCheck(s,a){
 }
 function pool(r){return Object.fromEntries(SKILLS.map(k=>[k,Number(r.common?.unemployed?.Working?.[k]||0)]));}
 function fill(d,p){if(d.workers.some(x=>x.type==='MiddleClass'))return null;function walk(i,left){if(i===d.workers.length)return left;const slot=d.workers[i],choices=slot.type==='Skilled'?[slot.color]:SKILLS;for(const skill of choices)if(left[skill]>0){const done=walk(i+1,{...left,[skill]:left[skill]-1});if(done)return done;}return null;}return walk(0,{...p});}
-function fillOptions(d,p){if(d.workers.some(x=>x.type==='MiddleClass'))return [];const found=[];function walk(i,left){if(i===d.workers.length){found.push(left);return;}const slot=d.workers[i],choices=slot.type==='Skilled'?[slot.color]:SKILLS;for(const skill of choices)if(left[skill]>0)walk(i+1,{...left,[skill]:left[skill]-1});}walk(0,{...p});return [...new Map(found.map(x=>[JSON.stringify(x),x])).values()];}
+function fillOptions(d,p,owner='Working'){if(owner!=='Middle'&&d.workers.some(x=>x.type==='MiddleClass'))return [];const found=[];function walk(i,left){if(i===d.workers.length){found.push(left);return;}const slot=d.workers[i],choices=slot.type==='Unskilled'?SKILLS:[slot.color];for(const skill of choices)if(left[skill]>0)walk(i+1,{...left,[skill]:left[skill]-1});}walk(0,{...p});return [...new Map(found.map(x=>[JSON.stringify(x),x])).values()];}
 const UNION_SKILL={Food:'Green',Luxury:'Blue',Health:'White',Education:'Orange',Media:'Purple'};
 // Enumerate complete-company assignments and legal Swap Workers pools. A union
 // consumes its own matching skilled worker in addition to its four employees.
@@ -181,7 +181,7 @@ function strikeAction(s){
  const targets=c.list.slice(0,2).map(x=>x.name);
  return actionResult('STR',true,`${targets.join('、')}にストライキします。`,targets,[`ストライキ可能企業${c.list.length}社から優先基準で選択`,`全基準で同点の場合はアプリが保存中の手番情報から抽選`],[],{action:'STR',companyIds:c.list.slice(0,2).map(x=>x.id)});
 }
-function fillPlan(d,p){if(d.workers.some(x=>x.type==='MiddleClass'))return null;function walk(i,left,slots){if(i===d.workers.length)return {left,slots};const slot=d.workers[i],choices=slot.type==='Skilled'?[slot.color]:SKILLS;for(const skill of choices)if(left[skill]>0){const done=walk(i+1,{...left,[skill]:left[skill]-1},[...slots,{index:i,skill}]);if(done)return done;}return null;}return walk(0,{...p},[]);}
+function fillPlan(d,p,owner='Working'){if(owner!=='Middle'&&d.workers.some(x=>x.type==='MiddleClass'))return null;function walk(i,left,slots){if(i===d.workers.length)return {left,slots};const slot=d.workers[i],choices=slot.type==='Unskilled'?SKILLS:[slot.color];for(const skill of choices)if(left[skill]>0){const done=walk(i+1,{...left,[skill]:left[skill]-1},[...slots,{index:i,skill}]);if(done)return done;}return null;}return walk(0,{...p},[]);}
 function unlimitedWorkerAction(s,standard=false,analysis=false){
  const r=s.records,map=defs(),policy=standard?'B':s.positions[2];
  if(!standard&&!['B','C'].includes(policy))return null;
@@ -291,5 +291,5 @@ function specialAction(s){const number=String(s.card?.number||''),card=CARD_DATA
  return actionResult('SA',null,'特殊アクションの登録内容を確認してください。');}
 function evaluateAction(s,action){if(!s?.records)return actionResult(action,null,'盤面の初期設定が必要です。');if(action==='PB')return policyAction(s);if(action==='BGS')return goodsAction(s);if(action==='STR')return strikeAction(s);if(action==='AW')return workerAction(s);if(action==='DEM')return demonstrationAction(s);if(action==='SA')return specialAction(s);throw Error('未知の行動です');}
 function evaluate(s,check,answers={}){if(!s?.records)return {status:'needsReview',movements:[],reasons:[],questions:[],warnings:['盤面の初期設定が必要です。'],source:'Word転記'};let o;if(check==='PB')o=policyCheck(s,answers);else if(check==='STR')o=strikeCheck(s);else if(check==='BGS')o=goodsCheck(s,answers);else if(check==='AW')o=workersCheck(s,answers);else throw Error('未知のチェックです');const card=CARD_DATA[String(s.card?.number||'')]||{};if(card.bonusType)o.reasons.unshift(`カード#${s.card.number}のボーナスを適用できる前提で判定`);return o;}
-root.WCAJudge={evaluate,evaluateAction,SAMPLE_CARDS,CARD_DATA,foreignMarketPrice,immediateVote2P};if(typeof module!=='undefined')module.exports=root.WCAJudge;
+root.WCAJudge={common:{cheapest,fillPlan,fillOptions,actionResult},evaluate,evaluateAction,SAMPLE_CARDS,CARD_DATA,foreignMarketPrice,immediateVote2P};if(typeof module!=='undefined')module.exports=root.WCAJudge;
 })(typeof globalThis!=='undefined'?globalThis:this);
