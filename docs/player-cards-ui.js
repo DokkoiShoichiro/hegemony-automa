@@ -3,7 +3,7 @@
 let selected=null;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const companyName=def=>root.WCARecords.companyName(def);
-const labels={Working:'労働者',Capitalist:'資本家',Middle:'中産階級'},resources={food:'食料',health:'医療',education:'教育',luxury:'ぜいたく品'},industries={Food:'食料',Luxury:'贅沢品',Health:'医療',Education:'教育',Media:'影響力'},skills={Gray:'未熟練',Green:'農業',Blue:'贅沢品',White:'医療',Orange:'教育',Purple:'メディア'};
+const labels={Working:'労働者',Capitalist:'資本家',Middle:'中産階級',State:'政府'},resources={food:'食料',health:'医療',education:'教育',luxury:'ぜいたく品'},industries={Food:'食料',Luxury:'贅沢品',Health:'医療',Education:'教育',Media:'影響力'},skills={Gray:'未熟練',Green:'農業',Blue:'贅沢品',White:'医療',Orange:'教育',Purple:'メディア'};
 function copyLabel(owner,uid){const c=root.PlayerCards.card(owner,uid);return c.copies>1?`同名カード ${String(uid).split('#')[1]}/${c.copies}`:'この階級に1枚';}
 function selection(s){const owner=root.PlayerCards.activeOwner(s),hand=s.playerCards?.classes[owner]?.hand||[];return hand.includes(selected)?selected:hand[0];}
 function politicalForm(s,owner,c,effect,pending,selected,form,commit){
@@ -44,11 +44,12 @@ function render(s,flow,commit){
   panel.querySelectorAll('.hand-choice').forEach(el=>el.classList.toggle('selected',el.querySelector('input').value===selected));
   const c=P.card(owner,pending?.uid||selected);if(!c){summary.innerHTML='';details.innerHTML='';return;}
   const a=P.availability(s,owner,pending?.uid||selected);
-  summary.innerHTML=`<h3>${esc(c.name)} <small class="card-copy-label">${esc(copyLabel(owner,pending?.uid||selected))}</small></h3><p aria-label="${esc(c.effect)}">${root.GameSymbols.text(c.effect)}</p>${c.requirement?`<p class="muted">使用条件：${esc(c.requirement)}</p>`:''}${c.bonus?`<p class="muted">正当性：${esc(c.bonus.detail||'+'+c.bonus.amount)}。国家プレイヤー不参加のため適用しません。</p>`:''}${!a.ready?`<p class="notice">${esc(a.reason)}</p>`:''}`;
+  summary.innerHTML=`<h3>${esc(c.name)} <small class="card-copy-label">${esc(copyLabel(owner,pending?.uid||selected))}</small></h3><p aria-label="${esc(c.effect)}">${root.GameSymbols.text(c.effect)}</p>${c.requirement?`<p class="muted">使用条件：${esc(c.requirement)}</p>`:''}${c.bonus?`<p class="muted">正当性：${esc(c.bonus.detail||'+'+c.bonus.amount)}。${s.records.participants.State==='human'?'効果の実行時に反映します。':'国家プレイヤー不参加のため適用しません。'}</p>`:''}${!a.ready?`<p class="notice">${esc(a.reason)}</p>`:''}`;
   details.innerHTML=`${active&&(!used||pending)&&a.ready?'<form id="playerCardEffectForm"><div id="cardEffectFields"></div><p id="cardEffectPreview" class="setup-summary" aria-live="polite"></p><button id="playCardEffect" type="submit">このカードの効果を使う</button></form>':''}`;
   if(!active||used&&!pending||!a.ready)return;
   const form=details.querySelector('form'),fields=form.querySelector('#cardEffectFields'),w=s.records.personal[owner].values,cap=s.records.personal.Capitalist.values;
   const qtyField=(title,max)=>`<label>${title}<input id="effectQty" type="number" min="0" max="${max}" value="${Math.min(1,max)}"></label>`;
+  if(a.effect==='stateCard'){root.StatePlayerUi.card(s,c,selected,form,commit);return;}
   if(a.effect==='middleCard'){root.MiddleCardsUi.render(s,c,selected,form,commit,pending);return;}
   if(a.effect.startsWith('politics')){politicalForm(s,owner,c,a.effect,pending,selected,form,commit);return;}
   if(['branding','foodCrisis','foreignPartner','exportInsight'].includes(a.effect)){
@@ -181,7 +182,7 @@ function render(s,flow,commit){
   const basicIds=owner==='Working'?['workingAssign','workingBuy','workingPropose','workingStrike','workingDem','workingPressure']:['capBuild','capPressure','capLobby','capPropose','capPurchase','capSell','capExport'];
   if(pending){const wage=flow.querySelector('#capRaiseWage');if(wage)wage.disabled=true;}
   if(used)basicIds.forEach(id=>{const button=flow.querySelector('#'+id);if(button)button.disabled=true;});
-  const end=flow.querySelector('#playerEnd');if(end)end.disabled=!used||!!pending;
+  const end=flow.querySelector('#playerEnd');if(end)end.disabled=!used||!!pending||!!s.government?.pending;
   if(owner==='Middle'&&pending)flow.querySelectorAll(':scope > fieldset button, :scope > details button').forEach(button=>button.disabled=true);
   if(owner==='Capitalist'){
    const source=flow.querySelector('#capPurchaseSource');if(source){source.querySelector('[value="Foreign"]')?.remove();source.value='BusinessDeal';source.dispatchEvent(new Event('change'));}

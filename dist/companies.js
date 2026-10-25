@@ -891,3 +891,5 @@ globalThis.WCA_EXTRA_COMPANIES = [
 
 // Base rules v1.2 pp.7-9: distinct three-player initial public cards and initial Middle doctor.
 for(const [source,id,tag] of [['state_technical_university','state_technical_university_init3','Initial_Setup_3P'],['state_national_broadcaster','state_national_broadcaster_init3','Initial_Setup_3P'],['state_university_hospital','state_university_hospital_init3','Initial_Setup_3P'],['mc_doctors_office','mc_doctors_office_init','Initial_Setup']]){const d=globalThis.WCA_EXTRA_COMPANIES.find(x=>x.id===source);globalThis.WCA_EXTRA_COMPANIES.push({...JSON.parse(JSON.stringify(d)),id,tags:[tag]});}
+
+(function(root){root.HegemonyCompanyDefinitions=records=>[...root.WCA_COMPANIES,...root.WCA_EXTRA_COMPANIES].map(d=>records?.companies?.[d.id]?.controller?{...d,class:records.companies[d.id].controller}:d);})(globalThis);

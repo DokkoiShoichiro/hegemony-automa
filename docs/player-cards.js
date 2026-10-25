@@ -2,7 +2,7 @@
 'use strict';
 // Base-card effects are added in stages and explicitly listed below. C&C data is retained in the
 // catalog, but is not mixed into the playable deck until its effects are ready.
-const classKeys={Working:'working_class',Capitalist:'capitalist_class',Middle:'middle_class'};
+const classKeys={Working:'working_class',Capitalist:'capitalist_class',Middle:'middle_class',State:'state'};
 const voteKeys={Working:'workingVotesOutside',Capitalist:'capitalistVotesOutside'};
 const skills=['Gray','Green','Blue','White','Orange','Purple'];
 const copy=x=>JSON.parse(JSON.stringify(x));
@@ -57,14 +57,14 @@ function validate(s){
  check(Object.keys(p.classes).length===humans.length&&humans.every(owner=>p.classes[owner]),'手札を管理する階級が不正です');
  for(const owner of humans){const c=p.classes[owner];check(c&&['deck','hand','discard'].every(k=>Array.isArray(c[k])),'山札・手札・捨て札が不正です');check(validOrder(owner,[...c.deck,...c.hand,...c.discard]),'アクションカードに重複・欠落があります');check(c.hand.length<=7,'手札は7枚までです');}
 }
-const activeOwner=s=>['Working','Middle','Capitalist'].find(id=>s.records?.participants?.[id]==='human')||(s.automaClass==='Capitalist'?'Working':'Capitalist');
-const mainEvents=new Set(['workingBasic','workingPolicy','playerPolicy','playerPurchase','playerBuild','playerSell','playerExport','playerLobby','playerPressure','playerCardEffect','playerCardReveal','middleBasic','middlePolicy']);
+const activeOwner=s=>['Working','Middle','Capitalist','State'].find(id=>s.records?.participants?.[id]==='human')||(s.automaClass==='Capitalist'?'Working':'Capitalist');
+const mainEvents=new Set(['workingBasic','workingPolicy','playerPolicy','playerPurchase','playerBuild','playerSell','playerExport','playerLobby','playerPressure','playerCardEffect','playerCardReveal','middleBasic','middlePolicy','stateBasic','statePolicy']);
 function consume(s,e){
  check(s.phase==='player'&&s.records?.participants[activeOwner(s)]==='human','プレイヤーの手番ではありません');
  check(!s.playerCards.used,'この手番のメインアクションは実行済みです');
  const owner=activeOwner(s),c=s.playerCards.classes[owner],index=c.hand.indexOf(e.cardUid);
  check(index>=0,'使用する手札のカードを選んでください');
- if(owner==='Middle')check(['middleBasic','middlePolicy','playerCardEffect','playerCardReveal'].includes(e.type),'中産階級のアクションではありません');else if(owner==='Working')check(['workingBasic','workingPolicy','playerCardEffect'].includes(e.type),'労働者のアクションではありません');
+ if(owner==='State')check(['stateBasic','statePolicy','playerCardEffect'].includes(e.type),'政府のアクションではありません');else if(owner==='Middle')check(['middleBasic','middlePolicy','playerCardEffect','playerCardReveal'].includes(e.type),'中産階級のアクションではありません');else if(owner==='Working')check(['workingBasic','workingPolicy','playerCardEffect'].includes(e.type),'労働者のアクションではありません');
  else check(!['workingBasic','workingPolicy'].includes(e.type),'資本家のアクションではありません');
  c.hand.splice(index,1);c.discard.push(e.cardUid);s.playerCards.used=true;
  // workingBasic/workingPolicy perform their own legacy one-action check.
@@ -86,7 +86,7 @@ function requirement(s,c){
 }
 function availability(s,owner,uid){
  const c=card(owner,uid);if(!c)return {ready:false,reason:'カードがありません'};
- if(!effects[c.id])return {ready:false,reason:'カード効果は次の実装段階で対応します。基本アクション用には使用できます。'};
+ if(owner==='State'&&root.StatePlayer.cardSupported(c.id)){const reason=requirement(s,c);return {ready:!reason,reason:reason||'',effect:'stateCard'};}if(owner==='State'&&c.id==='st_nationalization')return {ready:false,reason:'国有化の対象企業の条件が元データにないため、本文の確認待ちです。基本アクション用には使用できます。'};if(!effects[c.id])return {ready:false,reason:'カード効果は次の実装段階で対応します。基本アクション用には使用できます。'};
  const reason=requirement(s,c);return {ready:!reason,reason:reason||'',effect:effects[c.id]};
 }
 function bonusAmount(bonus,bases={}){
@@ -404,6 +404,6 @@ function applyEffect(s,owner,c,plan={}){
  if(a.effect==='exportInsight')delete s.pendingPlayerCard;
  return s;
 }
-const api={catalog,card,definition,allCopies,shuffled,create,validate,activeOwner,mainEvents,consume,replenish,availability,bonusAmount,applyEffect,effects,companyDefinition,workerChoices,publicTransferSlots,revealExport};
+const api={requirement,catalog,card,definition,allCopies,shuffled,create,validate,activeOwner,mainEvents,consume,replenish,availability,bonusAmount,applyEffect,effects,companyDefinition,workerChoices,publicTransferSlots,revealExport};
 root.PlayerCards=api;if(typeof module!=='undefined')module.exports=api;
 })(globalThis);

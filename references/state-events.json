@@ -1,0 +1,417 @@
+[
+  {
+    "id": "EV01",
+    "name": "政治的二極化",
+    "task": "これらの階級に任意の組み合わせで30ヴァルディス支払って投票駒を4個提供する。",
+    "rewards": {
+      "Working": "1/提供した駒2つごと",
+      "Capitalist": "1/提供した駒2つごと"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Capitalist"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV02",
+    "name": "市民の不安",
+    "task": "他プレイヤー１人が選んだ法案を１つ提議する。",
+    "rewards": {
+      "Working": "2",
+      "Capitalist": "2"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Capitalist"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV03",
+    "name": "地震",
+    "task": "1階級に、その人口の半分（端数切り上げ）に等しい食料と医療を任意の組み合わせで（ただしそれぞれ最低1つ）提供する。",
+    "rewards": {
+      "Working": "1/提供したもの2つごと",
+      "Middle": "1/提供したもの2つごと"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV04",
+    "name": "低い大学ランキング",
+    "task": "（ラウンド2~5のみ）国有企業の数までの教育を、他プレイヤーから任意の組み合わせで購入する。",
+    "rewards": {
+      "Capitalist": "1/購入した教育3つごと",
+      "Middle": "1/購入した教育3つごと"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Capitalist",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 2
+  },
+  {
+    "id": "EV05",
+    "name": "疫病の流行",
+    "task": "（ラウンド2~5のみ）国有企業の数までの医療を、他プレイヤーから任意の組み合わせで購入する。",
+    "rewards": {
+      "Capitalist": "1/購入した医療3つごと",
+      "Middle": "1/購入した医療3つごと"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Capitalist",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 2
+  },
+  {
+    "id": "EV06",
+    "name": "老朽化した公共セクターのインフラ",
+    "task": "（ラウンド2~5のみ）国有企業の数までの贅沢品を、他プレイヤーから任意の組み合わせで購入する。",
+    "rewards": {
+      "Capitalist": "1/購入した贅沢品3つごと",
+      "Middle": "1/購入した贅沢品3つごと"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Capitalist",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 2
+  },
+  {
+    "id": "EV07",
+    "name": "技術的無知",
+    "task": "1階級に、その人口の半分（端数切り上げ）か、操業している企業の半分（端数切り上げ）に等しい教育と贅沢品を任意の組み合わせで（ただしそれぞれ最低1つ）提供する。",
+    "rewards": {
+      "Working": "1/提供したもの2つごと",
+      "Capitalist": "1/提供したもの2つごと"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Capitalist"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV08",
+    "name": "年金制度改革の要求",
+    "task": "1階級に、その人口の5倍に等しいヴァルディスを提供する。",
+    "rewards": {
+      "Working": "2VP／提供した15ヴァルディスごとに",
+      "Middle": "1正当性トークン／提供した20ヴァルディスごとに"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV09",
+    "name": "支援を必要としている未成熟産業",
+    "task": "コストが15ヴァルディス以上の、他の階級の企業１つのコストを支払って設立する。",
+    "rewards": {
+      "Capitalist": "1正当性トークン",
+      "Middle": "1正当性トークン"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Capitalist",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV10",
+    "name": "緊急経済対策の要求",
+    "task": "各階級に10ヴァルディスか15ヴァルディスずつ提供する。",
+    "rewards": {
+      "Working": "10ヴァルディス：3VP\n15ヴァルディス：+1",
+      "Capitalist": "10ヴァルディス：3VP\n15ヴァルディス：+1",
+      "Middle": "10ヴァルディス：3VP\n15ヴァルディス：+1"
+    },
+    "other": null,
+    "penalty": "-1（任意の2階級）",
+    "targets": [
+      "Working",
+      "Capitalist",
+      "Middle"
+    ],
+    "anyPenalty": true,
+    "minRound": 1
+  },
+  {
+    "id": "EV11",
+    "name": "政治スキャンダル",
+    "task": "他の3階級に任意の組み合わせで25ヴァルディスを支払い、メディアの影響力を3個まで提供する。",
+    "rewards": {
+      "Working": "1/提供した１影響力ごとに",
+      "Capitalist": "1/提供した１影響力ごとに",
+      "Middle": "1/提供した１影響力ごとに"
+    },
+    "other": null,
+    "penalty": "-1（任意の2階級）",
+    "targets": [
+      "Working",
+      "Capitalist",
+      "Middle"
+    ],
+    "anyPenalty": true,
+    "minRound": 1
+  },
+  {
+    "id": "EV12",
+    "name": "持続可能な取り組みの要求",
+    "task": "2階級を選ぶ。それらの各階級に25ヴァルディスを提供する。",
+    "rewards": {
+      "Working": "1",
+      "Capitalist": "1",
+      "Middle": "1"
+    },
+    "other": null,
+    "penalty": "-1（任意の2階級）",
+    "targets": [
+      "Working",
+      "Capitalist",
+      "Middle"
+    ],
+    "anyPenalty": true,
+    "minRound": 1
+  },
+  {
+    "id": "EV13",
+    "name": "より高い福祉水準の要求",
+    "task": "1階級に、その人口の半分（端数切り上げ）に等しい医療と健康を任意の組み合わせで（ただしそれぞれ最低1つ）提供する。",
+    "rewards": {
+      "Working": "1",
+      "Middle": "1"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV14",
+    "name": "国内産業の混乱",
+    "task": "1階級に、その操業している企業1つごとに5ヴァルディスを提供する。",
+    "rewards": {
+      "Capitalist": "2VP／提供した15ヴァルディスごとに",
+      "Middle": "1正当性トークン／提供した20ヴァルディスごとに"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Capitalist",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV15",
+    "name": "港でのストライキ",
+    "task": "1階級にメディアの2影響力を提供する。",
+    "rewards": {
+      "Working": "1正当性トークン",
+      "Capitalist": "1正当性トークン"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Capitalist"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV16",
+    "name": "低い教育指数",
+    "task": "1階級に、その人口の半分（端数切り上げ）に等しい教育を提供する。",
+    "rewards": {
+      "Working": "1",
+      "Middle": "1"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV17",
+    "name": "出生率の低下",
+    "task": "1階級に、その人口の半分（端数切り上げ）に等しい医療を提供する。",
+    "rewards": {
+      "Working": "1",
+      "Middle": "1"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV18",
+    "name": "企業によるより良いインターネットの要求",
+    "task": "1階級に、その操業している企業の半分（端数切り上げ）に等しい贅沢品を提供する。",
+    "rewards": {
+      "Capitalist": "1/提供した贅沢品2つごと",
+      "Middle": "1/提供した贅沢品2つごと"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Capitalist",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV19",
+    "name": "干ばつ",
+    "task": "1階級に、その人口の半分（端数切り上げ）か、操業している企業の半分（端数切り上げ）に等しい食料品を提供する。",
+    "rewards": {
+      "Working": "1正当性トークン",
+      "Capitalist": "1正当性トークン"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Capitalist"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV20",
+    "name": "13月給与の要求",
+    "task": "1階級に、公共セクターで雇用されているその階級の労働者1個ごとに5ヴァルディスを提供する。",
+    "rewards": {
+      "Working": "1正当性トークン／提供した25ヴァルディスごとに",
+      "Middle": "1／提供した15ヴァルディスごとに"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV21",
+    "name": "不公平な代議制",
+    "task": "1階級に、あなた独自の1影響力と投票駒2個を提供する。",
+    "rewards": {
+      "Working": "1",
+      "Capitalist": "1",
+      "Middle": "1"
+    },
+    "other": null,
+    "penalty": "-1（任意の2階級）",
+    "targets": [
+      "Working",
+      "Capitalist",
+      "Middle"
+    ],
+    "anyPenalty": true,
+    "minRound": 1
+  },
+  {
+    "id": "EV22",
+    "name": "デフレーションの恐れ",
+    "task": "15ヴァルディスか30ヴァルディスか45ヴァルディスを（サプライに）支払う。",
+    "rewards": {},
+    "other": "2VP/支払った15ヴァルディスごとに",
+    "penalty": "-1（任意の2階級）",
+    "targets": [],
+    "anyPenalty": true,
+    "minRound": 1
+  },
+  {
+    "id": "EV23",
+    "name": "困窮している開発途上国",
+    "task": "6教育までを（サプライに）支払う。",
+    "rewards": {},
+    "other": "1VP/支払った教育1ごとに",
+    "penalty": "-1（任意の2階級）",
+    "targets": [],
+    "anyPenalty": true,
+    "minRound": 1
+  },
+  {
+    "id": "EV24",
+    "name": "国際的供給網の危機",
+    "task": "1階級に、その人口の半分（端数切り上げ）に等しい食料品と贅沢品を任意の組み合わせで（ただしそれぞれ最低1つ）提供する。",
+    "rewards": {
+      "Working": "1/提供したもの2つごと",
+      "Middle": "1VP/提供したもの1つごと"
+    },
+    "other": null,
+    "penalty": "-1",
+    "targets": [
+      "Working",
+      "Middle"
+    ],
+    "anyPenalty": false,
+    "minRound": 1
+  },
+  {
+    "id": "EV25",
+    "name": "戦時中の隣国",
+    "task": "6医療までを（サプライに）支払う。",
+    "rewards": {},
+    "other": "1VP/支払った医療1ごとに",
+    "penalty": "-1（任意の2階級）",
+    "targets": [],
+    "anyPenalty": true,
+    "minRound": 1
+  }
+]

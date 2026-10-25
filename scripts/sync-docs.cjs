@@ -4,7 +4,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'..');
 const source=path.join(root,'dist');
 const target=path.join(root,'docs');
-const files=['middle-ai-cards.js','middle-automa.js','middle-automa-ui.js','actions-ui.js','assignment-ui.js','middle-cards.js','middle-cards-ui.js','middle.js','middle-ui.js','action-card-data.js','player-cards.js','player-cards-ui.js','index.html','app.js','boards.js','capitalist.js','companies.js','engine.js','judge.js','style.css'];
+const files=['state-data.js','state.js','state-ui.js','middle-ai-cards.js','middle-automa.js','middle-automa-ui.js','actions-ui.js','assignment-ui.js','middle-cards.js','middle-cards-ui.js','middle.js','middle-ui.js','action-card-data.js','player-cards.js','player-cards-ui.js','index.html','app.js','boards.js','capitalist.js','companies.js','engine.js','judge.js','style.css'];
 const check=process.argv.includes('--check');
 const differences=[];
 
