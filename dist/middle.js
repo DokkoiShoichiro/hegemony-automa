@@ -25,7 +25,7 @@ function setup(base,e,workingCards,middleCards){
  const r=copy(base);r.setup.players=3;r.participants=Object.fromEntries(['Working','Middle','Capitalist'].map(id=>[id,id===(e.humanClass||'Middle')?'human':'automa']));r.participants.State='absent';
  r.common.values.health=6;r.common.values.education=6;r.common.values.influence=4;
  r.common.unemployed.Working=Object.fromEntries(skills.map(k=>[k,k==='Gray'?1:0]));r.common.unemployed.Middle=Object.fromEntries(skills.map(k=>[k,0]));
- const chosen=e.middleSkill;check(skills.includes(chosen)&&chosen!=='Gray','中産階級の初期熟練労働者の技能を選んでください');r.common.unemployed.Middle[chosen]++;
+ const automatic=r.participants.Middle==='automa';let chosen=e.middleSkill;if(!automatic){check(skills.includes(chosen)&&chosen!=='Gray','中産階級の初期熟練労働者の技能を選んでください');r.common.unemployed.Middle[chosen]++;}
  for(const card of workingCards)r.common.unemployed.Working[card.Working]++;
  for(const card of middleCards)r.common.unemployed.Middle[card.Middle]++;
  r.personal.Middle={values:{cash:40,population:3,workerCount:10,prosperity:0,prosperityStep:0,loans:0,influence:1,vp:0,billMarkers:3,food:1,health:1,education:0,luxury:0,consumedFood:0,consumedHealth:0,consumedEducation:0,consumedLuxury:0,foodPrice:12,healthPrice:8,educationPrice:8,luxuryPrice:8,foodStorage:0,healthStorage:0,educationStorage:0,luxuryStorage:0},note:'販売用倉庫と購入済み商品・サービスは別々に管理します。'};
@@ -36,6 +36,7 @@ function setup(base,e,workingCards,middleCards){
  staff('state_technical_university_init3','Middle');staff('state_university_hospital_init3','Working');r.companies.state_national_broadcaster_init3.status='built';
  for(const id of ['mc_convenience_store_init','mc_doctors_office_init']){const d=def(id),c=r.companies[id];c.status='built';c.operating='yes';c.slots=d.workers.map(w=>({owner:w.type==='MiddleClass'?'Middle':'empty',skill:w.color,committed:false}));}
  const market=e.middleMarket||randomMarket(r);check(Array.isArray(market)&&market.length===3&&new Set(market).size===3&&market.every(id=>candidates(r).some(d=>d.id===id)),'中産階級の市場には山札から異なる3枚を選んでください');for(const id of market)r.companies[id].status='market';
+ if(automatic){check(root.MCAJudge,'中産階級オートマの選択基準が必要です');const selection=root.MCAJudge.skilledAction({records:r,round:1,turn:1});check(selection.feasible===true&&skills.includes(selection.plan?.skill),'中産階級の初期熟練労働者を自動選択できません');chosen=selection.plan.skill;r.common.unemployed.Middle[chosen]++;r.setup.middleSkillAutomatic=true;r.setup.middleSkillReasons=[...selection.reasons];}
  r.setup.middleMarket=[...market];r.setup.middleSkill=chosen;r.setup.immigrationCards=copy(workingCards);r.setup.middleImmigrationCards=copy(middleCards);r.setup.pending=r.setup.pending.filter(x=>!x.includes('移民カード'));delete r.setup.immigrationCard;return R.validate(r);
 }
 function assignmentChoices(r,id,index,reassign=true){
