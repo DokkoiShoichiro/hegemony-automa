@@ -10,7 +10,7 @@ const check=(ok,msg)=>{if(!ok)throw Error(msg);};
 const integer=(x,msg)=>{check(Number.isSafeInteger(x)&&x>=0,msg);return x;};
 const defs=()=>[...root.WCA_COMPANIES,...root.WCA_EXTRA_COMPANIES];
 const def=id=>defs().find(d=>d.id===id);
-const definition=(r,id)=>r.companies[id]?.controller?{...def(id),class:r.companies[id].controller}:r.companies[id]?.slotProfile==='base-v1.2-initial'?{...def(id),workers:def(id).workers.slice(0,2)}:def(id);
+const definition=(r,id)=>{const d=def(id),c=r.companies[id],effective=c?.slotProfile==='base-v1.2-initial'?{...d,workers:d.workers.slice(0,2)}:d;return c?.controller?{...effective,class:c.controller}:effective;};
 const hasMiddle=r=>['human','automa'].includes(r?.participants?.Middle)&&[3,4].includes(r?.setup?.players);
 const isThree=r=>r?.participants?.Middle==='human'&&r?.setup?.players===3;
 const empty=d=>({status:'unbuilt',wage:Object.keys(d.wages||{}).length?'L2':'unknown',operating:'no',machinery:false,strike:false,note:'',slots:d.workers.map(w=>({owner:'empty',skill:w.color,committed:false}))});

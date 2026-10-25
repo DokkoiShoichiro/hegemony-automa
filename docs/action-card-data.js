@@ -1351,7 +1351,7 @@ const data={
         "name": "国有化",
         "copies": 1,
         "expansion": "base",
-        "effect": "非稼働の公共企業1つをゲームから除外し、条件を満たす資本家企業1つと置き換えてPublic Sectorへ移す。その後、その企業へ労働者を配置してよい。政策1Bが施行中なら、その企業の費用を資本家階級へ支払う。",
+        "effect": "操業していない国有企業を1つ取り除き、機械化トークンがなく操業していない資本家階級の企業1つと置き換え、公共セクターへ移動する。その後、その企業に労働者を割り当ててよい。政策1Bでは、その企業のコストを資本家階級に支払う。",
         "requirement": "政策1がAまたはB（1A/1B）",
         "bonus": null,
         "name_en": "Nationalization"
@@ -1366,8 +1366,9 @@ const data={
         "requirement": "政策1がBまたはC（1B/1C）",
         "bonus": {
           "type": "legitimacy",
-          "target_class": null,
-          "amount": 1
+          "target_class": "capitalist_class",
+          "amount": 1,
+          "detail": "資本家階級に対する国家の正当性を1上げる。"
         },
         "name_en": "Privatization"
       },

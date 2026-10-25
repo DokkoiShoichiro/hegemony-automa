@@ -86,7 +86,7 @@ function requirement(s,c){
 }
 function availability(s,owner,uid){
  const c=card(owner,uid);if(!c)return {ready:false,reason:'カードがありません'};
- if(owner==='State'&&root.StatePlayer.cardSupported(c.id)){const reason=requirement(s,c);return {ready:!reason,reason:reason||'',effect:'stateCard'};}if(owner==='State'&&c.id==='st_nationalization')return {ready:false,reason:'国有化の対象企業の条件が元データにないため、本文の確認待ちです。基本アクション用には使用できます。'};if(!effects[c.id])return {ready:false,reason:'カード効果は次の実装段階で対応します。基本アクション用には使用できます。'};
+ if(owner==='State'&&root.StatePlayer.cardSupported(c.id)){const reason=requirement(s,c);return {ready:!reason,reason:reason||'',effect:'stateCard'};}if(!effects[c.id])return {ready:false,reason:'カード効果は次の実装段階で対応します。基本アクション用には使用できます。'};
  const reason=requirement(s,c);return {ready:!reason,reason:reason||'',effect:effects[c.id]};
 }
 function bonusAmount(bonus,bases={}){
@@ -107,7 +107,7 @@ const built=(r,owner)=>Object.entries(r.companies).filter(([id,c])=>c.status==='
 const employed=r=>Object.values(r.companies).reduce((n,c)=>n+(c.status==='built'?c.slots.filter(x=>x.owner==='Working').length:0),0);
 const unemployed=r=>Object.values(r.common.unemployed.Working).reduce((n,x)=>n+known(x,'失業労働者'),0);
 const unionSkills={Food:'Green',Luxury:'Blue',Health:'White',Education:'Orange',Media:'Purple'};
-function companyDefinition(r,id){const d=def(id);return d&&r.companies[id]?.slotProfile==='base-v1.2-initial'?{...d,workers:d.workers.slice(0,2)}:d;}
+function companyDefinition(r,id){const d=root.HegemonyCompanyDefinitions(r).find(d=>d.id===id);return d&&r.companies[id]?.slotProfile==='base-v1.2-initial'?{...d,workers:d.workers.slice(0,2)}:d;}
 function workerChoices(r,reassign=false){
  const result=skills.filter(skill=>Number(r.common.unemployed.Working[skill])>0).map(skill=>({ref:`u:${skill}`,skill,count:r.common.unemployed.Working[skill]}));
  if(reassign)for(const [id,c] of Object.entries(r.companies))if(c.status==='built')c.slots.forEach((slot,index)=>{if(slot.owner==='Working'&&!slot.committed)result.push({ref:`c:${id}:${index}`,skill:slot.skill,companyId:id,index});});
@@ -404,6 +404,6 @@ function applyEffect(s,owner,c,plan={}){
  if(a.effect==='exportInsight')delete s.pendingPlayerCard;
  return s;
 }
-const api={requirement,catalog,card,definition,allCopies,shuffled,create,validate,activeOwner,mainEvents,consume,replenish,availability,bonusAmount,applyEffect,effects,companyDefinition,workerChoices,publicTransferSlots,revealExport};
+const api={assignWorkers,requirement,catalog,card,definition,allCopies,shuffled,create,validate,activeOwner,mainEvents,consume,replenish,availability,bonusAmount,applyEffect,effects,companyDefinition,workerChoices,publicTransferSlots,revealExport};
 root.PlayerCards=api;if(typeof module!=='undefined')module.exports=api;
 })(globalThis);

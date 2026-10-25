@@ -137,6 +137,7 @@ function goodsPlans(s){
   const held=Number(w[key]),qty=held===Number(population)?Number(population):Math.max(0,Number(population)-held),sources=[];
   if(!qty)continue;
   if(resource!=='Luxury'){let price=({A:0,B:5,C:10})[s.positions[resource==='Health'?4:5]];if(card.bonusType===`half${resource}`)price=Math.ceil(price/2);sources.push({name:'国家',source:'State',key,stock:Number(r.common.values?.[key]||0),price});}
+  if(resource==='Luxury'&&r.participants.State==='human'&&r.personal.State.values.luxury>0)sources.push({name:'国家',source:'State',key,stock:r.personal.State.values.luxury,price:r.personal.State.values.luxuryPrice});
   if(resource==='Luxury')sources.push({name:`海外市場（基本6＋関税${FOREIGN_TARIFF[s.positions[6]].luxury}）`,source:'Foreign',key,stock:Infinity,price:foreignMarketPrice('luxury',s.positions[6]),tariff:FOREIGN_TARIFF[s.positions[6]].luxury});
   if(!publicOnly&&cap[key]!=null&&cap[`${key}Price`]!=null){const full=Number(cap[`${key}Price`]),half=resource==='Luxury'&&card.bonusType==='halfLuxury'&&['A','B'].includes(s.positions[1]);sources.push({name:'資本家',source:'Capitalist',key,stock:Number(cap[key]),price:full,halfSubsidy:half});}
   if(!publicOnly&&root.MiddleClass?.hasMiddle(r)){const middle=r.personal.Middle.values;sources.push({name:'中産階級',source:'Middle',key,stock:middle[key],price:middle[key+'Price'],halfSubsidy:resource==='Luxury'&&card.bonusType==='halfLuxury'&&['A','B'].includes(s.positions[1])});}
