@@ -261,3 +261,9 @@ dialog#setupWelcome{width:min(94vw,900px)}
 .drawn-ai-card dl{grid-template-columns:minmax(0,1fr) auto}
 .drawn-ai-card .ai-check-order dd{display:flex;align-items:center;flex-wrap:wrap;gap:3px}
 .drawn-ai-card .ai-check-order dd b{padding:0}
+.automa-check-summary{margin:10px 0;padding:10px;border:1px solid #52647e;border-radius:8px;background:#0d192a}
+.automa-check-summary h3{font-size:.9rem;margin:0 0 7px}.check-result-movements{display:flex;flex-wrap:wrap;gap:5px;font-size:.85rem}
+.check-result-chip{padding:3px 7px;border-radius:5px;background:#253f40;color:#eaf0f8;font-weight:700}
+.automa-final-order{font-size:.8rem;line-height:1.6;margin:7px 0}.automa-final-order>span{color:#aebcd0}
+.check-breakdown{font-size:.8rem}.check-breakdown section{border-top:1px solid #304057;padding:7px 0}.check-breakdown h4{margin:4px 0}.check-breakdown p{margin:5px 0}
+.automa-ai-card{margin:10px 0;font-size:.85rem}.automa-ai-card .drawn-ai-card{margin:8px 0}

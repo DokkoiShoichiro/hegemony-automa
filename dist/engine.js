@@ -46,7 +46,7 @@ const tradeDeckIds=()=>({export:Object.keys(EXPORT_CARD_DATA),business:Object.ke
 function validTradeDecks(decks){const ids=tradeDeckIds();return decks&&['export','business'].every(type=>Array.isArray(decks[type])&&decks[type].length===ids[type].length&&new Set(decks[type]).size===ids[type].length&&decks[type].every(id=>(type==='export'?EXPORT_CARD_DATA:BUSINESS_DEAL_DATA)[id]));}
 function randomTradeDecks(random=Math.random){const decks=tradeDeckIds();for(const deck of Object.values(decks))for(let i=deck.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}return decks;}
 function drawTradeCards(s,dealCount){requireThat(Number.isSafeInteger(dealCount)&&dealCount>=0&&dealCount<=2,'商取引カードの枚数が不正です');if(!validTradeDecks(s.tradeDecks))s.tradeDecks=randomTradeDecks();const exportId=s.tradeDecks.export.shift();s.tradeDecks.export.push(exportId);const businessDeals=[];for(let i=0;i<dealCount;i++){const id=s.tradeDecks.business.shift();s.tradeDecks.business.push(id);businessDeals.push(copy(BUSINESS_DEAL_DATA[id]));}return {exportCard:copy(EXPORT_CARD_DATA[exportId]),businessDeals};}
-function drawAutomaCard(s,providedDeck){const fallback=s.automaClass==='Capitalist'?Object.keys(root.CCAJudge?.CARD_DATA||{}):deckNumbers();if(!validDeck(s.aiDeck)){s.aiDeck=validDeck(providedDeck)?providedDeck.map(String):fallback;s.aiDiscard=[];}if(!s.aiDeck.length&&s.automaMode==='Both'){requireThat(s.aiDiscard?.length,'AIカードの山札と捨て札が空です');s.aiDeck=[...s.aiDiscard];for(let i=s.aiDeck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[s.aiDeck[i],s.aiDeck[j]]=[s.aiDeck[j],s.aiDeck[i]];}s.aiDiscard=[];}requireThat(s.aiDeck.length,'AIカードの山札が空です');const number=String(s.aiDeck.shift()),c=catalog(s)?.CARD_DATA?.[number];requireThat(c,'AIカードの登録データがありません');s.aiDiscard??=[];s.aiDiscard.push(number);s.card={number,order:[...c.order],policies:c.policies.map(String),bonus:c.bonus};s.phase='checks';s.index=0;return number;}
+function drawAutomaCard(s,providedDeck){const fallback=s.automaClass==='Capitalist'?Object.keys(root.CCAJudge?.CARD_DATA||{}):deckNumbers();if(!validDeck(s.aiDeck)){s.aiDeck=validDeck(providedDeck)?providedDeck.map(String):fallback;s.aiDiscard=[];}if(!s.aiDeck.length&&s.automaMode==='Both'){requireThat(s.aiDiscard?.length,'AIカードの山札と捨て札が空です');s.aiDeck=[...s.aiDiscard];for(let i=s.aiDeck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[s.aiDeck[i],s.aiDeck[j]]=[s.aiDeck[j],s.aiDeck[i]];}s.aiDiscard=[];}requireThat(s.aiDeck.length,'AIカードの山札が空です');const number=String(s.aiDeck.shift()),c=catalog(s)?.CARD_DATA?.[number];requireThat(c,'AIカードの登録データがありません');s.aiDiscard??=[];s.aiDiscard.push(number);delete s.automaCheckSummary;s.card={number,order:[...c.order],policies:c.policies.map(String),bonus:c.bonus};s.phase='checks';s.index=0;return number;}
 // Each row array is stored from nearest to farthest from its marker. The UI
 // reverses Action rows because Action cards sit on the marker's left side.
 const initial=()=>({version:1,automaClass:'Working',round:1,turn:1,phase:'start',index:0,actions:{0:['SA','STR','DEM'],1:['AW','BGS','PB']},policies:{0:['2','4','6'],1:['1','5']},aside:{actions:{},policies:{3:'initial',7:'initial'}},positions:{1:'B',2:'B',3:'A',4:'B',5:'B',6:'B',7:'B'},proposals:{},card:null,facts:'',log:[]});
@@ -168,6 +168,7 @@ function applyPlayerPolitics(s,played,plan={},continuing=false){
 function freeAllowed(s,owner,action){const used=s.playerFreeAction;return !used||used.owner===owner&&used.action==='SWAP'&&action==='SWAP';}
 function freeEvent(s,e){if(s.phase!=='player')return null;if(e.type==='middleFree')return {owner:'Middle',action:e.plan?.action};if(e.type==='capitalistFree')return {owner:'Capitalist',action:e.plan?.action};if(e.type==='playerWage')return {owner:'Capitalist',action:'WAGE'};if(['freeAction','workingLoan','workingSwap'].includes(e.type))return {owner:'Working',action:({freeAction:'USE',workingLoan:'LOAN',workingSwap:'SWAP'})[e.type]};return null;}
 function validate(s){
+ if(s.automaCheckSummary!==undefined){const x=s.automaCheckSummary;requireThat(x?.version===1&&['Working','Middle','Capitalist'].includes(x.automaClass)&&Number.isInteger(x.round)&&x.round>=1&&x.round<=5&&Number.isInteger(x.turn)&&x.turn>=1&&x.turn<=5&&typeof x.cardNumber==='string'&&Number.isInteger(x.startIndex)&&x.startIndex>=0&&x.startIndex<4&&Array.isArray(x.checks)&&x.checks.length<=4&&x.checks.every(c=>Number.isInteger(c.index)&&c.index>=0&&c.index<4&&typeof c.kind==='string'&&Array.isArray(c.movements)&&typeof c.note==='string'),'自動チェックの記録が不正です');}
  if(s.mcaProsperityScope!==undefined)requireThat(['once','perCompany'].includes(s.mcaProsperityScope),'繁栄度条件の解釈が不正です');
  if(s.playerFreeAction)requireThat(['Working','Middle','Capitalist'].includes(s.playerFreeAction.owner)&&['USE','PRICE','WAGE','LOAN','SWAP','BONUS','STORAGE'].includes(s.playerFreeAction.action)&&s.records?.participants?.[s.playerFreeAction.owner]==='human','フリーアクションの使用記録が不正です');
  requireThat(!s.pendingPlayerCard||s.playerCards,'継続中のカードには手札管理が必要です');
@@ -199,6 +200,17 @@ function validate(s){
  if(['checks','action','end'].includes(s.phase))requireThat(s.card&&s.card.order?.length===4&&new Set(s.card.order).size===4&&s.card.order.every(x=>checkIds(s).includes(x)),'AIカードが不正です');
  return s;
 }
+function currentCheckSummary(s){const x=s.automaCheckSummary;return x&&x.automaClass===(s.automaClass||'Working')&&x.round===s.round&&x.turn===s.turn&&x.cardNumber===String(s.card?.number||'')?x:null;}
+function checkAll(state){
+ let s=copy(state);requireThat(s.phase==='checks','チェック中ではありません');
+ if(!currentCheckSummary(s))s.automaCheckSummary={version:1,automaClass:s.automaClass||'Working',round:s.round,turn:s.turn,cardNumber:String(s.card?.number||''),startIndex:s.index,before:{actions:copy(s.actions),policies:copy(s.policies)},checks:[]};
+ while(s.phase==='checks'){
+  const kind=s.card.order[s.index],verdict=catalog(s).evaluate(s,kind);
+  if(verdict.status!=='ready')break;
+  s=reduce(s,{type:'check',confirmed:true,automatic:true,note:verdict.reasons.filter(Boolean).join('\n')||'優先順位の移動なし',source:verdict.source||'',warnings:copy(verdict.warnings||[]),movements:copy(verdict.movements)});
+ }
+ return s;
+}
 function reduce(state,e){if(state.pendingPlayerCard?.kind==='politics')root.PlayerCards.validate(state);requireThat(!state.pendingPlayerCard||['playerCardContinue','setup'].includes(e.type)||state.pendingPlayerCard.kind==='politics'&&state.phase==='election'&&['electionDeclare','electionResolve','electionEmergencyRefill'].includes(e.type),'継続中のカード効果を先に完了してください');let s=copy(state);s.proposals??={};let note=e.note||'',played=null;
  if(s.playerCards&&root.PlayerCards.mainEvents.has(e.type))played=root.PlayerCards.consume(s,e);
  if(root.MiddleClass?.isThree(s.records)&&s.phase==='player')requireThat(!['playerPolicy','playerPurchase','playerBuild','playerWage','playerSell','playerExport','playerLobby','playerPressure','workingBasic','workingPolicy','freeAction'].includes(e.type),'中産階級のアクションを使用してください');
@@ -228,6 +240,9 @@ function reduce(state,e){if(state.pendingPlayerCard?.kind==='politics')root.Play
   requireThat(e.policies.length===2&&new Set(e.policies).size===2&&e.policies.every(x=>/^[1-7]$/.test(x)),'異なる政策2つを指定してください');
   requireThat(!e.number||(/^\d+$/.test(e.number)&&+e.number>=1&&+e.number<=30),'カード番号は1〜30です');
   s.card={number:e.number,order:e.order,policies:e.policies,bonus:e.bonus};s.phase='checks';s.index=0;break;
+ case 'checkAll':
+  if(e.prosperityScope!==undefined){requireThat(['once','perCompany'].includes(e.prosperityScope),'繁栄度条件の解釈が不正です');s.mcaProsperityScope=e.prosperityScope;}
+  {const from=s.index;s=checkAll(s);note=`${s.index-from}チェックを自動判定${s.phase==='action'?'し、優先順位を確定':'。残りは追加確認が必要です'}`;}break;
  case 'check':
   if(e.prosperityScope!==undefined){requireThat(['once','perCompany'].includes(e.prosperityScope),'繁栄度条件の解釈が不正です');s.mcaProsperityScope=e.prosperityScope;}
   requireThat(s.phase==='checks','チェック中ではありません');
@@ -235,7 +250,9 @@ function reduce(state,e){if(state.pendingPlayerCard?.kind==='politics')root.Play
   requireThat(e.confirmed===true,'現物での確認が必要です');
   if(s.automaClass==='Middle'&&s.card.order[s.index]==='AW')s.records=root.MCAJudge.swapWorkers(s).records;
   for(const m of e.movements){requireThat(['actions','policies'].includes(m.series)&&Number.isInteger(m.up)&&m.up>=1&&m.up<=100,'移動段数は1〜100です');requireThat((m.series==='actions'?actionIds(s):['1','2','3','4','5','6','7']).includes(m.card),'カードが不正です');m.applied=move(s,m.series,m.card,m.up);}
-  s.index++;if(s.index===4){compress(s,'actions');compress(s,'policies');s.phase='action';}break;
+  {const summary=currentCheckSummary(s);if(summary)summary.checks.push({index:s.index,kind:s.card.order[s.index],automatic:e.automatic===true,movements:copy(e.movements),note,source:e.source||'',warnings:copy(e.warnings||[])});}
+  s.index++;if(s.index===4){compress(s,'actions');compress(s,'policies');s.phase='action';}
+  {const summary=currentCheckSummary(s);if(summary)summary.after={actions:copy(s.actions),policies:copy(s.policies)};}break;
  case 'action':{
   requireThat(s.phase==='action','行動選択ではありません');
   const top=rank(s,'actions').slice(0,2);
@@ -359,5 +376,5 @@ function reduce(state,e){if(state.pendingPlayerCard?.kind==='politics')root.Play
  if(s.automaMode==='Both')for(const [id,p] of Object.entries(s.proposals))for(const owner of automaIds(s))withAutoma(s,owner,()=>{aside(s,'policies',id,'bill:'+p.proposer);});
  s.log.push({at:new Date().toISOString(),turn:s.turn,type:e.type,note,event:copy(e)});storeAutoma(s);validate(s);return s;
 }
-const api={catalog,humanClass,automaIds,middleInitial,freeAllowed,ACTIONS,CHECKS,initial,capitalistInitial,actionIds,checkIds,copy,rows,rank,locate,move,compress,validate,reduce,refillPlan,emergencyRefillPlan,politicalOptions,validatePlayerPolitics,bagCount,automaStance,voters,voteTotals,currentElection,randomDeck,IMMIGRATION_CARD_DATA,validImmigrationDeck,randomImmigrationDeck,drawImmigrationCards,EXPORT_CARD_DATA,BUSINESS_DEAL_DATA,validTradeDecks,randomTradeDecks,drawTradeCards};root.WCA=api;if(typeof module!=='undefined')module.exports=api;
+const api={currentCheckSummary,catalog,humanClass,automaIds,middleInitial,freeAllowed,ACTIONS,CHECKS,initial,capitalistInitial,actionIds,checkIds,copy,rows,rank,locate,move,compress,validate,reduce,refillPlan,emergencyRefillPlan,politicalOptions,validatePlayerPolitics,bagCount,automaStance,voters,voteTotals,currentElection,randomDeck,IMMIGRATION_CARD_DATA,validImmigrationDeck,randomImmigrationDeck,drawImmigrationCards,EXPORT_CARD_DATA,BUSINESS_DEAL_DATA,validTradeDecks,randomTradeDecks,drawTradeCards};root.WCA=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
