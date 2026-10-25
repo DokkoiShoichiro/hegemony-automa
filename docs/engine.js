@@ -169,7 +169,6 @@ function freeAllowed(s,owner,action){const used=s.playerFreeAction;return !used|
 function freeEvent(s,e){if(s.phase!=='player')return null;if(e.type==='middleFree')return {owner:'Middle',action:e.plan?.action};if(e.type==='capitalistFree')return {owner:'Capitalist',action:e.plan?.action};if(e.type==='playerWage')return {owner:'Capitalist',action:'WAGE'};if(['freeAction','workingLoan','workingSwap'].includes(e.type))return {owner:'Working',action:({freeAction:'USE',workingLoan:'LOAN',workingSwap:'SWAP'})[e.type]};return null;}
 function validate(s){
  if(s.automaCheckSummary!==undefined){const x=s.automaCheckSummary;requireThat(x?.version===1&&['Working','Middle','Capitalist'].includes(x.automaClass)&&Number.isInteger(x.round)&&x.round>=1&&x.round<=5&&Number.isInteger(x.turn)&&x.turn>=1&&x.turn<=5&&typeof x.cardNumber==='string'&&Number.isInteger(x.startIndex)&&x.startIndex>=0&&x.startIndex<4&&Array.isArray(x.checks)&&x.checks.length<=4&&x.checks.every(c=>Number.isInteger(c.index)&&c.index>=0&&c.index<4&&typeof c.kind==='string'&&Array.isArray(c.movements)&&typeof c.note==='string'),'自動チェックの記録が不正です');}
- if(s.mcaProsperityScope!==undefined)requireThat(['once','perCompany'].includes(s.mcaProsperityScope),'繁栄度条件の解釈が不正です');
  if(s.playerFreeAction)requireThat(['Working','Middle','Capitalist'].includes(s.playerFreeAction.owner)&&['USE','PRICE','WAGE','LOAN','SWAP','BONUS','STORAGE'].includes(s.playerFreeAction.action)&&s.records?.participants?.[s.playerFreeAction.owner]==='human','フリーアクションの使用記録が不正です');
  requireThat(!s.pendingPlayerCard||s.playerCards,'継続中のカードには手札管理が必要です');
  if(s.playerCards!==undefined){requireThat(root.PlayerCards,'プレイヤーカードモジュールが必要です');root.PlayerCards.validate(s);}
@@ -224,7 +223,7 @@ function reduce(state,e){if(state.pendingPlayerCard?.kind==='politics')root.Play
   s={...base,automaMode:both?'Both':'Single',records:prepared,positions:{1:'C',2:'B',3:'A',4:'B',5:'C',6:'B',7:'B'},aiDeck:validDeck(e.deck)?e.deck.map(String):(automaClass==='Capitalist'?Object.keys(root.CCAJudge?.CARD_DATA||{}):deckNumbers()),aiDiscard:[],tradeDecks:tradeState.tradeDecks,...(automaticImmigration?{immigrationDeck:migrationState.immigrationDeck}:{})};
   if(both){const working={...initial(),aiDeck:validDeck(e.workingDeck)?e.workingDeck.map(String):deckNumbers(),aiDiscard:[]},capitalist={...capitalistInitial(),aiDeck:validDeck(e.capitalistDeck)?e.capitalistDeck.map(String):Object.keys(root.CCAJudge?.CARD_DATA||{}),aiDiscard:[]};s.automaClass='Working';s.automaStates={Working:automaSnapshot(working),Capitalist:automaSnapshot(capitalist)};for(const key of automaKeys)s[key]=copy(s.automaStates.Working[key]);}
   else s.phase=roundOpeningPhase(s);
-  if(three){requireThat(automaticImmigration,'3人戦では移民カード山札が必要です');const middleCards=drawImmigrationCards(s,2),human=e.automaClass==='ThreeWorking'?'Working':e.automaClass==='ThreeCapitalist'?'Capitalist':'Middle';s.records=root.MiddleClass.setup(prepared,{...e,humanClass:human},initialCards,middleCards);if(human!=='Middle'){delete s.automaStates[human];const middle={...middleInitial(),aiDeck:validDeck(e.middleDeck)?e.middleDeck.map(String):deckNumbers(),aiDiscard:[]};s.automaStates.Middle=automaSnapshot(middle);s.automaClass=automaIds(s)[0];for(const key of automaKeys)s[key]=copy(s.automaStates[s.automaClass][key]);}s.phase=roundOpeningPhase(s);if(e.mcaProsperityScope!==undefined)s.mcaProsperityScope=e.mcaProsperityScope;}
+  if(three){requireThat(automaticImmigration,'3人戦では移民カード山札が必要です');const middleCards=drawImmigrationCards(s,2),human=e.automaClass==='ThreeWorking'?'Working':e.automaClass==='ThreeCapitalist'?'Capitalist':'Middle';s.records=root.MiddleClass.setup(prepared,{...e,humanClass:human},initialCards,middleCards);if(human!=='Middle'){delete s.automaStates[human];const middle={...middleInitial(),aiDeck:validDeck(e.middleDeck)?e.middleDeck.map(String):deckNumbers(),aiDiscard:[]};s.automaStates.Middle=automaSnapshot(middle);s.automaClass=automaIds(s)[0];for(const key of automaKeys)s[key]=copy(s.automaStates[s.automaClass][key]);}s.phase=roundOpeningPhase(s);}
   if(e.managePlayerCards===true){requireThat(root.PlayerCards,'プレイヤーカードモジュールが必要です');s.playerCards=root.PlayerCards.create(s.records,e.playerCardDecks);}
   note=`${three?'3':'2'}人ゲームの初期状態を適用（${three?`${humanClass(s)}プレイヤー＋${automaIds(s).join('・')}オートマ`:both?'労働者オートマ対資本家オートマ':automaClass==='Capitalist'?'資本家':'労働者'}）`;break;
  }
@@ -241,10 +240,8 @@ function reduce(state,e){if(state.pendingPlayerCard?.kind==='politics')root.Play
   requireThat(!e.number||(/^\d+$/.test(e.number)&&+e.number>=1&&+e.number<=30),'カード番号は1〜30です');
   s.card={number:e.number,order:e.order,policies:e.policies,bonus:e.bonus};s.phase='checks';s.index=0;break;
  case 'checkAll':
-  if(e.prosperityScope!==undefined){requireThat(['once','perCompany'].includes(e.prosperityScope),'繁栄度条件の解釈が不正です');s.mcaProsperityScope=e.prosperityScope;}
   {const from=s.index;s=checkAll(s);note=`${s.index-from}チェックを自動判定${s.phase==='action'?'し、優先順位を確定':'。残りは追加確認が必要です'}`;}break;
  case 'check':
-  if(e.prosperityScope!==undefined){requireThat(['once','perCompany'].includes(e.prosperityScope),'繁栄度条件の解釈が不正です');s.mcaProsperityScope=e.prosperityScope;}
   requireThat(s.phase==='checks','チェック中ではありません');
   requireThat(note.trim(),'判定の根拠を入力してください');
   requireThat(e.confirmed===true,'現物での確認が必要です');
