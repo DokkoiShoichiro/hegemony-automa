@@ -57,7 +57,7 @@ function validate(s){
  check(Object.keys(p.classes).length===humans.length&&humans.every(owner=>p.classes[owner]),'手札を管理する階級が不正です');
  for(const owner of humans){const c=p.classes[owner];check(c&&['deck','hand','discard'].every(k=>Array.isArray(c[k])),'山札・手札・捨て札が不正です');check(validOrder(owner,[...c.deck,...c.hand,...c.discard]),'アクションカードに重複・欠落があります');check(c.hand.length<=7,'手札は7枚までです');}
 }
-const activeOwner=s=>s.records?.participants?.Middle==='human'?'Middle':s.automaClass==='Capitalist'?'Working':'Capitalist';
+const activeOwner=s=>['Working','Middle','Capitalist'].find(id=>s.records?.participants?.[id]==='human')||(s.automaClass==='Capitalist'?'Working':'Capitalist');
 const mainEvents=new Set(['workingBasic','workingPolicy','playerPolicy','playerPurchase','playerBuild','playerSell','playerExport','playerLobby','playerPressure','playerCardEffect','playerCardReveal','middleBasic','middlePolicy']);
 function consume(s,e){
  check(s.phase==='player'&&s.records?.participants[activeOwner(s)]==='human','プレイヤーの手番ではありません');
@@ -227,7 +227,7 @@ function revealExport(s,played){
 function applyEffect(s,owner,c,plan={}){
  if(owner==='Middle'&&effects[c.id]==='middleCard')return root.MiddleCards.apply(s,c,plan);
  const a=availability(s,owner,c.id);check(a.ready,a.reason);
- check(owner==='Middle'?root.MiddleClass?.isThree(s.records):s.records.participants.Middle==='absent'&&s.records.participants.State==='absent','この階級のカード効果は現在の人数設定に対応していません');
+ check(owner==='Middle'?root.MiddleClass?.isThree(s.records):s.records.participants[owner]==='human'&&s.records.participants.State==='absent','この階級のカード効果は現在の人数設定に対応していません');
  let production=null,machinery=null,companySearch=null,tradeEffect=null,r=copy(s.records);const w=r.personal.Working.values,cap=r.personal.Capitalist.values,state=r.personal.State.values;
  const bases={unemployed_workers:unemployed(r),assigned_workers:employed(r),companies_owned:built(r,'Capitalist').length};
  const addVotes=(who,n)=>{const key=voteKeys[who];r.common.values[key]=Math.max(0,known(r.common.values[key],'袋の外の投票駒')-n);};
