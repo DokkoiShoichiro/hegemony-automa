@@ -233,7 +233,7 @@ function reduce(state,e){if(state.pendingPlayerCard?.kind==='politics')root.Play
   if(three){requireThat(automaticImmigration,'3人戦では移民カード山札が必要です');const middleCards=drawImmigrationCards(s,2),human=e.automaClass==='ThreeWorking'?'Working':e.automaClass==='ThreeCapitalist'?'Capitalist':four?'State':'Middle';s.records=root.MiddleClass.setup(prepared,{...e,humanClass:human},initialCards,middleCards);if(human!=='Middle'){delete s.automaStates[human];const middle={...middleInitial(),aiDeck:validDeck(e.middleDeck)?e.middleDeck.map(String):deckNumbers(),aiDiscard:[]};s.automaStates.Middle=automaSnapshot(middle);s.automaClass=automaIds(s)[0];for(const key of automaKeys)s[key]=copy(s.automaStates[s.automaClass][key]);}s.phase=roundOpeningPhase(s);}
   if(four){root.StatePlayer.setup(s,e);s.phase='start';}
   if(e.managePlayerCards===true){requireThat(root.PlayerCards,'プレイヤーカードモジュールが必要です');s.playerCards=root.PlayerCards.create(s.records,e.playerCardDecks);}
-  note=`${three?'3':'2'}人ゲームの初期状態を適用（${three?`${humanClass(s)}プレイヤー＋${automaIds(s).join('・')}オートマ`:both?'労働者オートマ対資本家オートマ':automaClass==='Capitalist'?'資本家':'労働者'}）`;break;
+  note=`${s.records.setup.players}人ゲームの初期状態を適用（${three?`${humanClass(s)}プレイヤー＋${automaIds(s).join('・')}オートマ`:both?'労働者オートマ対資本家オートマ':automaClass==='Capitalist'?'資本家':'労働者'}）`;break;
  }
  case 'record':
   requireThat(root.WCARecords,'盤面記録モジュールが必要です');
