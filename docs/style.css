@@ -280,3 +280,5 @@ label:has([data-vote="workingVotesOutside"],[data-election-cube="Working"],[data
 label:has([data-vote="capitalistVotesOutside"],[data-election-cube="Capitalist"],[data-cube-class="Capitalist"]){--class-color:var(--class-capitalist)}
 label:has([data-vote="middleVotesOutside"],[data-election-cube="Middle"],[data-cube-class="Middle"]){--class-color:var(--class-middle)}
 .vote-grid label,.cube-grid label{border-color:var(--class-color,#40516a)}.vote-grid label>span,.vote-grid label>strong{color:var(--class-color)}
+
+.refill-grid [data-state-election-refill]{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 14px}[data-state-election-info] small{display:block;margin-top:4px}
